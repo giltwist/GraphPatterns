@@ -1,28 +1,4 @@
-import snap
 import re
-
-
-def load_graph(filepath):
-    G = snap.LoadEdgeListStr(snap.TNGraph, filepath, 0, 1)
-    print("Number of Nodes: %d" % G.GetNodes())
-
-    G = snap.LoadEdgeListStr(snap.TUNGraph, filepath, 0, 1)
-    print("Number of Nodes: %d" % G.GetNodes())
-
-    G = snap.LoadEdgeListStr(snap.TNEANet, filepath, 0, 1)
-    print("Number of Nodes: %d" % G.GetNodes())
-
-    (G, Map) = snap.LoadEdgeListStr(snap.TNGraph, filepath, 0, 1, True)
-    print("Number of Nodes: %d" % G.GetNodes())
-    print("Number of Nodes: %d" % Map.Len())
-
-    # Basic testing of graph data
-    # convert input string to node id
-    NodeId = Map.GetKeyId("1065")
-    # convert node id to input string
-    NodeName = Map.GetKey(NodeId)
-    print("name", NodeName)
-    print("id  ", NodeId)
 
 
 # adapted from https://snap.stanford.edu/data/web-Amazon.html
