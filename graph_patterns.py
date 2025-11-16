@@ -50,11 +50,12 @@ if __name__ == "__main__":
             
             #deduplicate users
             all_users=set(all_users)
+            print(f"Total users: {len(all_users)}")
 
             #Remove any leaf nodes
             leaves = [node for node,degree in dict(graph.degree()).items() if degree == 1]
             multi_users=all_users-set(leaves)
-            print(len(multi_users))
+            print(f"Reviewers with multiple reviews: {len(multi_users)}")
             graph.remove_nodes_from(leaves)
 
             # Only for small numbers of nodes
