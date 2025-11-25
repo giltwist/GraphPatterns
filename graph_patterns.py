@@ -61,8 +61,10 @@ def generate_graph():
 
         end = time.time()
 
-        nx.write_graphml(graph,GRAPH_CATEGORIES)
-        print("\tElapsed time: ", end-start)
+        # NOTE: GraphML stored node types as well, but was 1.1GB instead of 300MB
+        # NOTE: Switched to edge list based on research that suggested it was more memory efficient
+        nx.write_edgelist(graph,GRAPH_CATEGORIES,delimiter='|', data=['weight','type'])
+        print("Generation time: ", end-start)
         return graph
     else:
         print("Amazon metadata not found.  Download it from  https://snap.stanford.edu/data/amazon-meta.html")
@@ -75,21 +77,19 @@ def visualize_graph(graph):
         
         nx.draw(graph, with_labels=True, node_size=50)
     else:
-        print("Graph too large to visualize, summarizing")
-        summary_graph=nx.snap_aggregation(graph, node_attributes=("type",))
-        nx.draw(summary_graph, with_labels=True, node_size=50)
-    plt.savefig("test.png")
+        print("Graph too large to visualize")
 
 
 
 if __name__ == "__main__":
     if os.path.exists(GRAPH_CATEGORIES):
         print("Category graph found")
-        graph = nx.read_edgelist(GRAPH_CATEGORIES,nodetype=str, data=(('weight',int),('color',str)))
+        nx_graph = nx.read_edgelist(GRAPH_CATEGORIES,delimiter='|',nodetype=str, data=(('weight',int),('type',str)))
     else:
         print("Category graph not found...generating")
-        graph = generate_graph()
+        nx_graph = generate_graph()
     
-    visualize_graph(graph)
+    scikit_graph = nx.to_scipy_sparse_array(nx_graph)
+    #visualize_graph(graph)
 
             
