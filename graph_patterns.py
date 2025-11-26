@@ -3,8 +3,8 @@ import time
 from graph_pattern_common import parse_metadata
 
 import networkx as nx
+from stellargraph import StellarGraph
 import matplotlib.pyplot as plt
-
 
 # From https://snap.stanford.edu/data/amazon0601.html
 GRAPH_TEXT = "./data/amazon0601.txt"
@@ -15,6 +15,8 @@ GRAPH_META = "./data/amazon-meta.txt"
 # Graphs we are building
 GRAPH_CATEGORIES = "./data/amazon-categories.txt"
 
+
+
 def generate_graph():
 
     if os.path.exists(GRAPH_META):
@@ -23,11 +25,13 @@ def generate_graph():
 
         all_users=[]
 
-        start = time.time()
 
+        # can use iterator i for limiting loop
+        # otherwise use entry e for data access
         for i, e in enumerate(parse_metadata(GRAPH_META)):
-            #print(str(i) + "|" + simplejson.dumps(e, indent=4) + "\n\n")
             
+            #Useful for debugging
+            #print(str(i) + "|" + simplejson.dumps(e, indent=4) + "\n\n")
             
             asin = e['ASIN']
             #print(i)
@@ -59,12 +63,10 @@ def generate_graph():
         print(f"Reviewers with multiple reviews: {len(multi_users)}.")
         graph.remove_nodes_from(leaves)
 
-        end = time.time()
 
         # NOTE: GraphML stored node types as well, but was 1.1GB instead of 300MB
         # NOTE: Switched to edge list based on research that suggested it was more memory efficient
         nx.write_edgelist(graph,GRAPH_CATEGORIES,delimiter='|', data=['weight','type'])
-        print("Generation time: ", end-start)
         return graph
     else:
         print("Amazon metadata not found.  Download it from  https://snap.stanford.edu/data/amazon-meta.html")
@@ -73,7 +75,7 @@ def generate_graph():
 def visualize_graph(graph):
     # Only for small numbers of nodes
     plt.figure(figsize=(60, 60)) 
-    if (graph.number_of_nodes()<1000 and graph.number_of_edges()>1000):
+    if (graph.number_of_nodes()<1000 and graph.number_of_edges()<1000):
         
         nx.draw(graph, with_labels=True, node_size=50)
     else:
@@ -84,12 +86,30 @@ def visualize_graph(graph):
 if __name__ == "__main__":
     if os.path.exists(GRAPH_CATEGORIES):
         print("Category graph found")
-        nx_graph = nx.read_edgelist(GRAPH_CATEGORIES,delimiter='|',nodetype=str, data=(('weight',int),('type',str)))
+
+        start = time.time()
+        nx_graph = nx.read_edgelist(GRAPH_CATEGORIES,delimiter='|',nodetype=str, data=(('weight',int),('type',str)),comments=None)
+        #Restore node types not saved in edgelist
+        for node in nx_graph.nodes:
+            if '[' in node:
+                nx_graph.nodes[node]['type']='category'
+            elif len(node)==10 and not node.startswith('A'):
+                nx_graph.nodes[node]['type']='product'
+            else:
+                nx_graph.nodes[node]['type']='user'
+        end = time.time()
+        print("Loading time: ", end-start)
     else:
         print("Category graph not found...generating")
+        start = time.time()
         nx_graph = generate_graph()
-    
-    scikit_graph = nx.to_scipy_sparse_array(nx_graph)
+        end = time.time()
+        print("Generation time: ", end-start)
+
+    print('Activating StellarGraph Library')
+    stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_attr='type')
+    print(stellar_graph.info())
+
     #visualize_graph(graph)
 
             
