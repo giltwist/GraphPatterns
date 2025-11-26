@@ -30,42 +30,41 @@ def parse_metadata(filepath):
                 eName = l[:colonPos]
                 rest = l[colonPos + 2 :]
 
-                match eName:
-                    case "similar":
-                        temp = rest.split(" ")
-                        if int(temp[0]) > 0:
-                            entry[eName] = temp[1:]
-                    case "categories":
-                        rows = int(rest)
-                        categories = []
-                        if rows>0:
-                            for i in range(rows):
-                                l = next(f).strip()
-                                categories.append(l)
-                            entry[eName] = categories
-                    case "reviews":
-                        rows = int(rest.split(" ")[3])
-                        reviews = []
-                        #print(rows)
-                        if rows>0:
-                            for i in range(rows):
-                                review = {}
-                                l = next(f).strip()
-                                l = re.sub(" +", " ", l)
-                                # fix persistent typo in data
-                                l = re.sub("cutomer", "customer", l)
-                                temp = l.split(" ")
+                if eName == "similar":
+                    temp = rest.split(" ")
+                    if int(temp[0]) > 0:
+                        entry[eName] = temp[1:]
+                elif eName == "categories":
+                    rows = int(rest)
+                    categories = []
+                    if rows>0:
+                        for i in range(rows):
+                            l = next(f).strip()
+                            categories.append(l)
+                        entry[eName] = categories
+                elif eName == "reviews":
+                    rows = int(rest.split(" ")[3])
+                    reviews = []
+                    #print(rows)
+                    if rows>0:
+                        for i in range(rows):
+                            review = {}
+                            l = next(f).strip()
+                            l = re.sub(" +", " ", l)
+                            # fix persistent typo in data
+                            l = re.sub("cutomer", "customer", l)
+                            temp = l.split(" ")
 
-                                review["date"] = temp[0]
-                                for j in range(4):
-                                    review[temp[2 * j + 1][:-1]] = (
-                                        temp[2 * (j + 1)] if j == 0 else int(temp[2 * (j + 1)])
-                                    )
-                                reviews.append(review)
-                            
-                            entry[eName] = reviews
-                    case _:
-                        entry[eName] = rest
+                            review["date"] = temp[0]
+                            for j in range(4):
+                                review[temp[2 * j + 1][:-1]] = (
+                                    temp[2 * (j + 1)] if j == 0 else int(temp[2 * (j + 1)])
+                                )
+                            reviews.append(review)
+                        
+                        entry[eName] = reviews
+                else:
+                    entry[eName] = rest
             if "Id" in entry and "ASIN" in entry:
                 yield entry
     except Exception as e:
