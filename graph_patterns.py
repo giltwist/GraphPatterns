@@ -227,7 +227,7 @@ def split_train_test(graph):
     # END HELPER FUNCTIONS
 
     start = time.time()
-    print('Sampling reviews and reviews-complement (est. ~3 minutes)')
+    print("\033[91m{}\033[00m".format("Sampling reviews and reviews-complement (est. ~3 minutes)"))
 
     edge_splitter_test = EdgeSplitter(graph)
 
@@ -238,11 +238,11 @@ def split_train_test(graph):
     )
 
     end = time.time()
-    print(f"\tSampling time: {end-start}") 
+    print("\033[93m{}\033[00m".format(f"\tSampling time: {int(end-start)}s"))
 
 
     start = time.time()
-    print('Building training set (est. ~5 minutes)')
+    print("\033[91m{}\033[00m".format("Building training set (est. ~5 minutes)"))
 
     edge_splitter_train = EdgeSplitter(graph_test, graph)
     
@@ -258,13 +258,13 @@ def split_train_test(graph):
     ) = train_test_split(examples, labels, train_size=0.75, test_size=0.25)
 
     end = time.time()
-    print(f"\t Building time: {end-start}") 
+    print("\033[93m{}\033[00m".format(f"\tBuilding time: {int(end-start)}s"))
 
     start = time.time()
-    print('Embedding training set (est. ~15 minutes)')
+    print("\033[91m{}\033[00m".format("Embedding training set (est. ~15 minutes)"))
     embedding_train = metapath2vec_embedding(graph_train, "Train Graph")
     end = time.time()
-    print(f"\t Embedding time: {end-start}") 
+    print("\033[93m{}\033[00m".format(f"\tEmbedding time: {int(end-start)}s"))
 
 
     binary_operators = [operator_l1, operator_l2]
@@ -275,13 +275,13 @@ def split_train_test(graph):
     print(f"Best result from '{best_result['binary_operator'].__name__}'")
 
     start = time.time()
-    print('Embedding testing set (est. ~15 minutes)')
+    print("\033[91m{}\033[00m".format("Embedding testing set (est. ~15 minutes)"))
     embedding_test = metapath2vec_embedding(graph_test, "Test Graph")
     end = time.time()
-    print(f"\t Embedding time: {end-start}") 
+    print("\033[93m{}\033[00m".format(f"\tEmbedding time: {int(end-start)}s"))
 
     start = time.time()
-    print('Embedding testing set (est. ~X minutes)')
+    print("\033[91m{}\033[00m".format("Embedding testing set (est. ~X minutes)"))
     test_score = evaluate_link_prediction_model(
     best_result["classifier"],
     examples_test,
@@ -293,7 +293,7 @@ def split_train_test(graph):
     f"ROC AUC score on test set using '{best_result['binary_operator'].__name__}': {test_score}"
     )
     end = time.time()
-    print(f"\t Evaluation time: {end-start}") 
+    print("\033[93m{}\033[00m".format(f"\tEvaluation time: {int(end-start)}s"))
 
 
 
@@ -307,7 +307,7 @@ def estimate_progress(task,duration):
 
 if __name__ == "__main__":
     if os.path.exists(GRAPH_CATEGORIES):
-        print("\033[91m {}\033[00m".format("Loading existing category graph (est. ~30 seconds)"))
+        print("\033[91m{}\033[00m".format("Loading existing category graph (est. ~30 seconds)"))
         start = time.time()
         nx_graph = nx.read_edgelist(GRAPH_CATEGORIES,delimiter='|',nodetype=str, data=(('weight',int),('type',str)),comments=None)
         #Restore node types not saved in edgelist
@@ -319,20 +319,20 @@ if __name__ == "__main__":
             else:
                 nx_graph.nodes[node]['type']='user'
         end = time.time()
-        print("\tLoading time: ", end-start)
+        print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
     else:
-        print("Generating new category graph (est. ~90 seconds)")
+        print("\033[91m{}\033[00m".format("Generating new category graph (est. ~90 seconds)"))
         start = time.time()
         nx_graph = generate_graph()
         end = time.time()
-        print("\tGeneration time: ", end-start)
+        print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
 
-    print('Activating StellarGraph Library (est. ~30 seconds)')
+    print("\033[91m{}\033[00m".format("Activating StellarGraph Library (est. ~30 seconds)"))
     start = time.time()
     stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_attr='type', edge_weight_attr='weight')
     print(stellar_graph.info())
     end = time.time()
-    print("\tActivation time: ", end-start)
+    print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
 
     split_train_test(stellar_graph)
 
