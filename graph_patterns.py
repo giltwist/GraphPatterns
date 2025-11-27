@@ -32,11 +32,18 @@ GRAPH_META = "./data/amazon-meta.txt"
 # Graph we are building
 GRAPH_CATEGORIES = "./data/amazon-categories.txt"
 
-# 1 out of every X products will be included in the grap
+# NOTE: Accepts one in GRAPH_REDUCTION_FACTOR products from the original dataset to accommodate system memory
+# Uncomment only one line
+# For a quick run, a factor of 10 is recommended
 GRAPH_REDUCTION_FACTOR = 10
+# With 16 GB of memory, factor of 2 is recommended
+#GRAPH_REDUCTION_FACTOR = 2
+# If you have 32 or 64GB of memory, a factor of 1 is likely achievable
+#GRAPH_REDUCTION_FACTOR = 1
 
 # == END CONFIG == 
 
+# NetworkX has nicer building and storing functions for graphs than StellarGraph
 def generate_graph():
 
     if os.path.exists(GRAPH_META):
@@ -312,8 +319,10 @@ def split_train_test(graph):
 def estimate_progress(task,duration):
     pass
 
-
+# NOTE: Time estimates were derived on an AMD 3770X CPU with 16GB memory
 if __name__ == "__main__":
+
+    # Loading is much faster than generating, particular with high GRAPH_REDUCTION_FACTOR
     if os.path.exists(GRAPH_CATEGORIES):
         print("\033[91m{}\033[00m".format(f"Loading existing category graph (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
         start = time.time()
@@ -334,6 +343,9 @@ if __name__ == "__main__":
         nx_graph = generate_graph()
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
+
+
+    # Send NetworkX graph to StellarGraph format
 
     print("\033[91m{}\033[00m".format(f"Activating StellarGraph Library (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
     start = time.time()
