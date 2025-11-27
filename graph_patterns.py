@@ -24,6 +24,8 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
+from random import sample
+
 # == GLOBAL CONFIG ==
 
 # From https://snap.stanford.edu/data/amazon-meta.html
@@ -226,6 +228,7 @@ def split_train_test(graph):
         return {
             "classifier": clf,
             "binary_operator": binary_operator,
+            "embedding": embedding_train,
             "score": score,
         }
     # END HELPER FUNCTIONS
@@ -351,7 +354,32 @@ if __name__ == "__main__":
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
 
-    split_train_test(stellar_graph)
+
+    # Do actual training of GNN using Metapath2Vec
+    trained = split_train_test(stellar_graph)
+    trained_clf = trained['classifier']
+    trained_op = trained['binary_operator']
+    trained_embedding = trained['embedding']
+
+    # Predict if a random user will like a random product
+    for i in range(10):
+        random_user=None
+        random_product=None
+
+        while (random_user is None or random_product is None):
+
+            random_node = sample(nx_graph.nodes, 1)[0]
+            
+            if random_user is None and nx_graph.nodes[random_node]['type']=='user':
+                random_user=random_node
+            elif random_product is None and nx_graph.nodes[random_node]['type'] == 'product':
+                random_product=random_node
+
+        
+        print(f"Predicting on {random_user} -> {random_product}")
+        predict_link=np.array([trained_embedding(random_user),trained_embedding(random_product)])
+        print(trained_clf.predict_proba(predict_link))
+        
 
 
         
