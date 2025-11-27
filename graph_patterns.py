@@ -60,10 +60,7 @@ def generate_graph():
             #Useful for debugging
             #print(str(i) + "|" + simplejson.dumps(e, indent=4) + "\n\n")
 
-            # NOTE: My desktop  didn't have enough memory (16GB) to do the whole dataset
-            # This if reduces dataset by GRAPH_REDUCTION_FACTOR to accommodate that
-            # If you have 32 or 64GB of memory, it may be worth trying lower factors
-            # NOTE: Time estimates were calculated with GRAPH_REDUCTION_FACTOR=2, expect double or quadruple time to do full dataset
+
             if i%GRAPH_REDUCTION_FACTOR==0:
             
                 asin = e['ASIN']
