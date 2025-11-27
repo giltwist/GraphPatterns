@@ -4,7 +4,7 @@ import time
 from graph_pattern_common import parse_metadata
 
 import matplotlib.pyplot as plt
-from math import isclose
+from math import isclose, ceil
 from sklearn.decomposition import PCA
 import os
 import networkx as nx
@@ -194,7 +194,7 @@ def split_train_test(graph):
 
     def evaluate_roc_auc(clf, link_features, link_labels):
         predicted = clf.predict_proba(link_features)
-
+        
         # check which class corresponds to positive links
         positive_column = list(clf.classes_).index(1)
         return roc_auc_score(link_labels, predicted[:, positive_column])
@@ -227,7 +227,7 @@ def split_train_test(graph):
     # END HELPER FUNCTIONS
 
     start = time.time()
-    print("\033[91m{}\033[00m".format("Sampling reviews and reviews-complement (est. ~3 minutes)"))
+    print("\033[91m{}\033[00m".format(f"Sampling reviews and reviews-complement (est. ~{ceil(6/GRAPH_REDUCTION_FACTOR)} minutes)"))
 
     edge_splitter_test = EdgeSplitter(graph)
 
@@ -242,7 +242,7 @@ def split_train_test(graph):
 
 
     start = time.time()
-    print("\033[91m{}\033[00m".format("Building training set (est. ~5 minutes)"))
+    print("\033[91m{}\033[00m".format(f"Building training set (est. ~{ceil(10/GRAPH_REDUCTION_FACTOR)} minutes)"))
 
     edge_splitter_train = EdgeSplitter(graph_test, graph)
     
@@ -261,7 +261,7 @@ def split_train_test(graph):
     print("\033[93m{}\033[00m".format(f"\tBuilding time: {int(end-start)}s"))
 
     start = time.time()
-    print("\033[91m{}\033[00m".format("Embedding training set (est. ~15 minutes)"))
+    print("\033[91m{}\033[00m".format(f"Embedding training set (est. ~{ceil(30/GRAPH_REDUCTION_FACTOR)} minutes)"))
     embedding_train = metapath2vec_embedding(graph_train, "Train Graph")
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tEmbedding time: {int(end-start)}s"))
@@ -274,14 +274,20 @@ def split_train_test(graph):
 
     print(f"Best result from '{best_result['binary_operator'].__name__}'")
 
+    op_table = pd.DataFrame(
+    [(result["binary_operator"].__name__, result["score"]) for result in results],
+    columns=("name", "ROC AUC score"),
+).set_index("name")
+    print(op_table)
+
     start = time.time()
-    print("\033[91m{}\033[00m".format("Embedding testing set (est. ~15 minutes)"))
+    print("\033[91m{}\033[00m".format(f"Embedding testing set (est. ~{ceil(30/GRAPH_REDUCTION_FACTOR)} minutes)"))
     embedding_test = metapath2vec_embedding(graph_test, "Test Graph")
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tEmbedding time: {int(end-start)}s"))
 
     start = time.time()
-    print("\033[91m{}\033[00m".format("Embedding testing set (est. ~X minutes)"))
+    print("\033[91m{}\033[00m".format(f"Evaluating testing set (est. ~X minutes)"))
     test_score = evaluate_link_prediction_model(
     best_result["classifier"],
     examples_test,
@@ -295,6 +301,8 @@ def split_train_test(graph):
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tEvaluation time: {int(end-start)}s"))
 
+    return best_result
+
 
 
 
@@ -307,7 +315,7 @@ def estimate_progress(task,duration):
 
 if __name__ == "__main__":
     if os.path.exists(GRAPH_CATEGORIES):
-        print("\033[91m{}\033[00m".format("Loading existing category graph (est. ~30 seconds)"))
+        print("\033[91m{}\033[00m".format(f"Loading existing category graph (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
         start = time.time()
         nx_graph = nx.read_edgelist(GRAPH_CATEGORIES,delimiter='|',nodetype=str, data=(('weight',int),('type',str)),comments=None)
         #Restore node types not saved in edgelist
@@ -321,13 +329,13 @@ if __name__ == "__main__":
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
     else:
-        print("\033[91m{}\033[00m".format("Generating new category graph (est. ~90 seconds)"))
+        print("\033[91m{}\033[00m".format(f"Generating new category graph (est. ~90 seconds)"))
         start = time.time()
         nx_graph = generate_graph()
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
 
-    print("\033[91m{}\033[00m".format("Activating StellarGraph Library (est. ~30 seconds)"))
+    print("\033[91m{}\033[00m".format(f"Activating StellarGraph Library (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
     start = time.time()
     stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_attr='type', edge_weight_attr='weight')
     print(stellar_graph.info())
