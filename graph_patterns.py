@@ -80,8 +80,8 @@ def generate_graph():
                         for i in range(len(info)-1):
                             graph.add_node(info[i],type='category')
                             graph.add_node(info[i+1],type='category')
-                            graph.add_edge(info[i],info[i+1],weight = 0, type='category_hierarchy')
-                        graph.add_edge(info[len(info)-1],asin,weight = 0, type='product_type')
+                            graph.add_edge(info[i],info[i+1],weight = i+1, type='category_hierarchy')
+                        graph.add_edge(info[len(info)-1],asin,weight = len(info), type='product_type')
                 #TODO: Add product-to-product edges with the similar-to information.
         
         #deduplicate users
@@ -319,6 +319,22 @@ def split_train_test(graph):
 def estimate_progress(task,duration):
     pass
 
+def get_reviews(user, graph):
+    neighbors=dict(graph[user])
+    for neighbor in neighbors:
+        print(neighbor,neighbors[neighbor]['weight'], get_categories(neighbor, graph))
+
+def get_categories(node, graph):
+
+    neighbors = dict(graph[node])
+    for neighbor in neighbors:
+        if neighbors[neighbor]['type']=="product_type":
+            return get_categories(neighbor,graph)
+        
+    
+
+
+
 # NOTE: Time estimates were derived on an AMD 3770X CPU with 16GB memory
 if __name__ == "__main__":
 
@@ -344,7 +360,16 @@ if __name__ == "__main__":
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
 
+    # TESTING AREA
 
+    done= False
+
+    while not done:
+        random_node = sample(nx_graph.nodes, 1)[0]      
+        if nx_graph.nodes[random_node]['type']=='user':
+            get_reviews(random_node,nx_graph)
+            done=True
+            
     # Send NetworkX graph to StellarGraph format
 
     print("\033[91m{}\033[00m".format(f"Activating StellarGraph Library (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
