@@ -25,7 +25,7 @@ def generate_graph():
 
         graph = nx.Graph()
 
-        all_users=[]
+        #all_users=[]
 
 
         # can use iterator i for limiting loop
@@ -42,10 +42,11 @@ def generate_graph():
                 graph.add_node(asin,type='product')
                 if 'reviews' in e:
                     for r in e['reviews']:
-                        graph.add_node(r['customer'],type='user')
-                        
-                        graph.add_edge(r['customer'],asin,weight = r['rating'], type='review')
-                        all_users.append(r['customer'])
+                        #Only append positive ratings as this model doesn't handle negative ratings
+                        if r['rating']>=3:
+                            graph.add_node(r['customer'],type='user')
+                            graph.add_edge(r['customer'],asin,weight = r['rating'], type='review')
+                            #all_users.append(r['customer'])
                 if 'categories' in e:
                     for c in e['categories']:
                         #print(c)
@@ -58,15 +59,15 @@ def generate_graph():
                 #TODO: Add product-to-product edges with the similar-to information.
         
         #deduplicate users
-        all_users=set(all_users)
-        print(f"Total users: {len(all_users)}")
+        #all_users=set(all_users)
+        #print(f"Total users: {len(all_users)}")
 
         #Remove any leaf nodes
-        print("Pruning singleton reviewers.")
-        leaves = [node for node,degree in dict(graph.degree()).items() if degree == 1]
-        multi_users=all_users-set(leaves)
-        print(f"Reviewers with multiple reviews: {len(multi_users)}.")
-        graph.remove_nodes_from(leaves)
+        #print("Pruning singleton reviewers.")
+        #leaves = [node for node,degree in dict(graph.degree()).items() if degree == 1]
+        #multi_users=all_users-set(leaves)
+        #print(f"Reviewers with multiple reviews: {len(multi_users)}.")
+        #graph.remove_nodes_from(leaves)
 
 
         # NOTE: Tried GraphML first because it stored node types as well, but was 1.1GB
@@ -194,10 +195,11 @@ if __name__ == "__main__":
         bfs = nx.bfs_tree(nx_graph,product, depth_limit=10)
         for x in bfs.nodes:     
             if nx_graph.nodes[x]['type'] == 'product' and x not in users_reviews:
-                predict_link=np.array((trained_embedding(random_user),trained_embedding(x)))
-                prediction=trained_clf.predict_proba(predict_link)
-                if prediction[1][1] > best_prediction:
-                    best_prediction=prediction[1][1]
+                predict_features=trained_op(trained_embedding(random_user),trained_embedding(x))
+                prediction=trained_clf.predict_proba([predict_features])
+                #print(prediction)
+                if prediction[0][1] > best_prediction:
+                    best_prediction=prediction[0][1]
                     best_product=x
                     print(f"{best_product} > {prediction}")
     
