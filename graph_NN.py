@@ -31,19 +31,24 @@ def split_train_test(graph):
     # Config options
     dimensions = 128
     num_walks = 1
-    walk_length = 10
+    walk_length = 15
     context_window_size = 10
     num_iter = 1
     workers = multiprocessing.cpu_count()
 
-    # Review of same product OR of products that are no more than 3 category hops away
+    # This section controls the random walks, ensuring they follow meaningful patterns.
+    # TODO: Continue to tinker with this section for better results
     user_metapaths = [
         ["user", "product", "user"],
         ["user", "product", "category", "product", "user"],
         ["user", "product", "category", "category", "product", "user"],
         ["user", "product", "category", "category", "category", "product", "user"],
         ["product","category","product"],
-        ["category","category"]
+        ["product", "user", "product"],
+        ["product","category","category","product"],
+        ["product","category","category","category","product"],
+        ["category","category"],
+        ["category","product","category"],
     ]
 
     # BEGIN HELPER FUNCTIONS
