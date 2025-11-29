@@ -14,7 +14,9 @@ import matplotlib.pyplot as plt
 
 from stellargraph import StellarGraph
 
+import dill
 
+from random import sample
 
 # NetworkX has nicer building and storing functions for graphs than StellarGraph
 def generate_graph():
@@ -89,17 +91,23 @@ def visualize_graph(graph):
 def estimate_progress(task,duration):
     pass
 
+#Must be NetworkX Graph
 def get_reviews(user, graph):
     neighbors=dict(graph[user])
+    dub_tab="\n\t\t"
+    reviews=[]
     for neighbor in neighbors:
-        print(neighbor,neighbors[neighbor]['weight'], get_categories(neighbor, graph))
+        reviews.append(f"{'Likes: ' if neighbors[neighbor]['weight']>=3 else 'Dislikes: '}{get_title(neighbor,GRAPH_META)}\n\t\t{dub_tab.join(get_types(neighbor,graph))}")
+    return reviews
 
-def get_categories(node, graph):
-
+#Must be NetworkX Graph
+def get_types(node, graph):
     neighbors = dict(graph[node])
+    types = []
     for neighbor in neighbors:
         if neighbors[neighbor]['type']=="product_type":
-            return get_categories(neighbor,graph)
+            types.append(neighbor)
+    return types
         
     
 
@@ -108,7 +116,15 @@ def get_categories(node, graph):
 # NOTE: Time estimates were derived on an AMD 3770X CPU with 16GB memory
 if __name__ == "__main__":
 
-    # Loading is much faster than generating, particular with high GRAPH_REDUCTION_FACTOR
+    
+
+    # Loading is much faster than generating, particular with low GRAPH_REDUCTION_FACTOR
+
+
+    nx_graph = nx.Graph()
+    trained=None
+
+    # Try to load at least the categories data
     if os.path.exists(GRAPH_CATEGORIES):
         print("\033[91m{}\033[00m".format(f"Loading existing category graph (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
         start = time.time()
@@ -124,60 +140,80 @@ if __name__ == "__main__":
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
     else:
+        # Generate everything
         print("\033[91m{}\033[00m".format(f"Generating new category graph (est. ~90 seconds)"))
         start = time.time()
         nx_graph = generate_graph()
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
 
-    # TESTING AREA
+    # Try to load complete model
+    if os.path.exists(GRAPH_MODEL):
+        print("\033[91m{}\033[00m".format(f"Loading existing link prediction model (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
+        start = time.time()
+        with open(GRAPH_MODEL, 'rb') as file:
+            trained = dill.load(file)
+        end = time.time()
+        print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
 
-    done= False
-
-    while not done:
-        random_node = sample(nx_graph.nodes, 1)[0]      
-        if nx_graph.nodes[random_node]['type']=='user':
-            get_reviews(random_node,nx_graph)
-            done=True
-            
-    # Send NetworkX graph to StellarGraph format
-
-    print("\033[91m{}\033[00m".format(f"Activating StellarGraph Library (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
-    start = time.time()
-    stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_attr='type', edge_weight_attr='weight')
-    print(stellar_graph.info())
-    end = time.time()
-    print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
+    else:
+        # Send NetworkX graph to StellarGraph format
 
 
-    # Do actual training of GNN using Metapath2Vec
-    trained = split_train_test(stellar_graph)
+        print("\033[91m{}\033[00m".format(f"Activating StellarGraph Library (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
+        start = time.time()
+        stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_attr='type', edge_weight_attr='weight')
+        print(stellar_graph.info())
+        end = time.time()
+        print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
+
+        # Do actual training of GNN using Metapath2Vec
+        trained = split_train_test(stellar_graph)
+    
+    
     trained_clf = trained['classifier']
     trained_op = trained['binary_operator']
     trained_embedding = trained['embedding']
 
     # Predict if a random user will like a random product
-    for i in range(10):
-        random_user=None
-        random_product=None
+    random_user=None
 
-        while (random_user is None or random_product is None):
+    while random_user is None:
+        random_node = sample(nx_graph.nodes, 1)[0]
+        if nx_graph.nodes[random_node]['type']=='user':
+            random_user=random_node
 
-            random_node = sample(nx_graph.nodes, 1)[0]
-            
-            if random_user is None and nx_graph.nodes[random_node]['type']=='user':
-                random_user=random_node
-            elif random_product is None and nx_graph.nodes[random_node]['type'] == 'product':
-                random_product=random_node
+    best_prediction=0
+    best_product=None
 
-        
-        print(f"Predicting on {random_user} -> {random_product}")
-        predict_link=np.array([trained_embedding(random_user),trained_embedding(random_product)])
-        print(trained_clf.predict_proba(predict_link))
-        
+    users_reviews=dict(nx_graph[random_user])
+
+    print("\033[91m{}\033[00m".format(f"Searching for a good recommendation (est. ~{ceil(600/GRAPH_REDUCTION_FACTOR)} seconds)"))
+    start = time.time() 
+    for product in users_reviews:
+        bfs = nx.bfs_tree(nx_graph,product, depth_limit=10)
+        for x in bfs.nodes:     
+            if nx_graph.nodes[x]['type'] == 'product' and x not in users_reviews:
+                predict_link=np.array((trained_embedding(random_user),trained_embedding(x)))
+                prediction=trained_clf.predict_proba(predict_link)
+                if prediction[1][1] > best_prediction:
+                    best_prediction=prediction[1][1]
+                    best_product=x
+                    print(f"{best_product} > {prediction}")
+    
+    print(f"\nRecommendation for {random_user}:")
+    print("=User's Tastes=")
+    print("\n","\n ".join(get_reviews(random_user,nx_graph)))
+    print("=Recommended Product Info=")
+    print(f"Title: {get_title(best_product,GRAPH_META)}")
+    print("\n\t","\n\t ".join(get_types(best_product,nx_graph)))
+    print(f"Confidence in prediction: {best_prediction:.1%}")
+
+    end = time.time()
+    print("\033[93m{}\033[00m".format(f"\tSearch time: {int(end-start)}s"))
+    
 
 
-        
         
         
 
