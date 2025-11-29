@@ -25,6 +25,20 @@ GRAPH_MODEL = f"./data/amazon-prediction_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
 
 # == END CONFIG == 
 
+def get_title(asin, filepath):
+    try:
+        with open(filepath, "r") as f:
+            entry = {}
+            for l in f:
+                l = l.strip()
+                if l == f"ASIN: {asin}":
+                    title = next(f).strip()[7:]
+                    return title
+            return "Not Found"
+                            
+    except Exception as e:
+        print(e)
+
 
 # adapted from https://snap.stanford.edu/data/web-Amazon.html
 def parse_metadata(filepath):
