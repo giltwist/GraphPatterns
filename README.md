@@ -4,4 +4,4 @@ For parallelization run with:
 
 export NETWORKX_AUTOMATIC_BACKENDS="parallel" && python graph_patterns.py
 
-Note: Runs on Python 3.11
+Note: Runs on Python 3.8
