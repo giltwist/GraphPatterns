@@ -1,5 +1,30 @@
 import re
 
+# == GLOBAL CONFIG ==
+
+# NOTE: Accepts one in GRAPH_REDUCTION_FACTOR products from the original dataset to accommodate system memory
+# Uncomment only one line
+# For a quick run, a factor of 10 is recommended
+GRAPH_REDUCTION_FACTOR = 10
+# With 16 GB of memory, factor of 3 is recommended
+# GRAPH_REDUCTION_FACTOR = 3
+# If you have 32 or 64GB of memory, a factor of 1 is potentially achievable
+#GRAPH_REDUCTION_FACTOR = 1
+
+
+# From https://snap.stanford.edu/data/amazon-meta.html
+GRAPH_META = "./data/amazon-meta.txt"
+
+# Graph we are building
+GRAPH_CATEGORIES = f"./data/amazon-categories_GRF{GRAPH_REDUCTION_FACTOR}.txt"
+
+# Model we are building
+
+GRAPH_MODEL = f"./data/amazon-prediction_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
+
+
+# == END CONFIG == 
+
 
 # adapted from https://snap.stanford.edu/data/web-Amazon.html
 def parse_metadata(filepath):

@@ -1,3 +1,6 @@
+from graph_pattern_common import parse_metadata, get_title
+from graph_pattern_common import GRAPH_REDUCTION_FACTOR, GRAPH_META, GRAPH_MODEL, GRAPH_CATEGORIES
+from graph_NN import split_train_test
 
 import os
 import time
@@ -7,6 +10,7 @@ import matplotlib.pyplot as plt
 from math import isclose, ceil
 from sklearn.decomposition import PCA
 import os
+import time
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -26,24 +30,10 @@ from sklearn.preprocessing import StandardScaler
 
 from random import sample
 
-# == GLOBAL CONFIG ==
 
-# From https://snap.stanford.edu/data/amazon-meta.html
-GRAPH_META = "./data/amazon-meta.txt"
+from stellargraph import StellarGraph
 
-# Graph we are building
-GRAPH_CATEGORIES = "./data/amazon-categories.txt"
 
-# NOTE: Accepts one in GRAPH_REDUCTION_FACTOR products from the original dataset to accommodate system memory
-# Uncomment only one line
-# For a quick run, a factor of 10 is recommended
-GRAPH_REDUCTION_FACTOR = 10
-# With 16 GB of memory, factor of 2 is recommended
-#GRAPH_REDUCTION_FACTOR = 2
-# If you have 32 or 64GB of memory, a factor of 1 is likely achievable
-#GRAPH_REDUCTION_FACTOR = 1
-
-# == END CONFIG == 
 
 # NetworkX has nicer building and storing functions for graphs than StellarGraph
 def generate_graph():
