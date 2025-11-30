@@ -7,6 +7,7 @@ import os
 import time
 import networkx as nx
 import numpy as np
+import pandas as pd
 
 from math import ceil, log2
 
@@ -58,9 +59,9 @@ def generate_graph():
     if os.path.exists(GRAPH_META):
 
         graph = nx.Graph()
+        reviews_array = []
 
         #all_users=[]
-
 
         # can use iterator i for limiting loop
         # otherwise use entry e for data access
@@ -69,45 +70,29 @@ def generate_graph():
             #Useful for debugging
             #print(str(i) + "|" + simplejson.dumps(e, indent=4) + "\n\n")
 
-
-            if i%GRAPH_REDUCTION_FACTOR==0:
-            
-                asin = e['ASIN']
-                graph.add_node(asin,type='product')
-                if 'reviews' in e:
+            if i%GRAPH_REDUCTION_FACTOR==0:            
+                # Ignore products with no categories or no reviews
+                if 'categories' in e and 'reviews' in e:
+                    asin = e['ASIN']
+                    graph.add_node(asin,type='product')
+                    item_categories=""
+                    for j, c in enumerate(e['categories']):
+                        #remove leading pipe
+                        if j==0:
+                            item_categories+=c[1:]
+                        else:
+                            item_categories+=c
+                    graph.nodes[asin]['feature']=np.array(vectorizer.transform([item_categories]).toarray().flatten())
                     for r in e['reviews']:
-                        #Only append positive ratings as this model doesn't handle negative ratings
-                        if r['rating']>=3:
-                            graph.add_node(r['customer'],type='user')
-                            graph.add_edge(r['customer'],asin,weight = r['rating'], type='review')
-                            #all_users.append(r['customer'])
-                if 'categories' in e:
-                    for c in e['categories']:
-                        #print(c)
-                        info = c.split("|")[1:]
-                        for i in range(len(info)-1):
-                            graph.add_node(info[i],type='category')
-                            graph.add_node(info[i+1],type='category')
-                            graph.add_edge(info[i],info[i+1],weight = i+1, type='category_hierarchy')
-                        graph.add_edge(info[len(info)-1],asin,weight = len(info), type='product_type')
-                #TODO: Add product-to-product edges with the similar-to information.
-        
-        #deduplicate users
-        #all_users=set(all_users)
-        #print(f"Total users: {len(all_users)}")
+                        graph.add_node(r['customer'],type='user')
+                        graph.add_edge(r['customer'],asin)
+                        reviews_array.append({'user':r['customer'],'product':asin,'rating':r['rating']})
 
-        #Remove any leaf nodes
-        #print("Pruning singleton reviewers.")
-        #leaves = [node for node,degree in dict(graph.degree()).items() if degree == 1]
-        #multi_users=all_users-set(leaves)
-        #print(f"Reviewers with multiple reviews: {len(multi_users)}.")
-        #graph.remove_nodes_from(leaves)
-
-
-        # NOTE: Tried GraphML first because it stored node types as well, but was 1.1GB
+        review_df = pd.DataFrame(reviews_array)
+        # NOTE: Tried GraphML first because it stored node types as well, but was way bigger
         # NOTE: Switched to edge list based on research that suggested it was more memory efficient, reduced size to 300MB
-        nx.write_edgelist(graph,GRAPH_CATEGORIES,delimiter='|', data=['weight','type'])
-        return graph
+        #nx.write_adjlist(graph,GRAPH_CATEGORIES,delimiter='|', data=['type', 'feature'])
+        return graph, review_df
     else:
         print("Amazon metadata not found.  Download it from  https://snap.stanford.edu/data/amazon-meta.html")
 
