@@ -125,19 +125,36 @@ if __name__ == "__main__":
 
 
     nx_graph = nx.Graph()
-    unskewed_graph = nx.Graph()
-    trained=None
+    vectorizer=TfidfVectorizer()
+    reviews=pd.DataFrame()
 
-    # Try to load at least the categories data
+    trained=None
+    
+
+    # Try to load the vectorizer
+    if os.path.exists(GRAPH_VECTORIZER):
+        print("\033[91m{}\033[00m".format(f"Loading existing vectorizer (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
+        start = time.time()
+        with open(GRAPH_VECTORIZER, 'rb') as file:
+            vectorizer = dill.load(file)
+        end = time.time()
+        print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
+    
+    else:
+        print("\033[91m{}\033[00m".format(f"Generating new vectorizer (est. ~60 seconds)"))
+        start = time.time()
+        vectorizer = generate_vectorizer()
+        end = time.time()
+        print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
+
+    # Try to load at least the graph
     if os.path.exists(GRAPH_CATEGORIES):
         print("\033[91m{}\033[00m".format(f"Loading existing category graph (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
         start = time.time()
         nx_graph = nx.read_edgelist(GRAPH_CATEGORIES,delimiter='|',nodetype=str, data=(('weight',int),('type',str)),comments=None)
         #Restore node types not saved in edgelist
         for node in nx_graph.nodes:
-            if '[' in node:
-                nx_graph.nodes[node]['type']='category'
-            elif len(node)==10 and not node.startswith('A'):
+            if len(node)==10 and not node.startswith('A'):
                 nx_graph.nodes[node]['type']='product'
             else:
                 nx_graph.nodes[node]['type']='user'
@@ -147,82 +164,17 @@ if __name__ == "__main__":
         # Generate everything
         print("\033[91m{}\033[00m".format(f"Generating new category graph (est. ~90 seconds)"))
         start = time.time()
-        nx_graph = generate_graph()
+        nx_graph, reviews = generate_graph()
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
 
-    unskewed_graph = unskew_graph(nx_graph)
-    # Try to load complete model
-    if os.path.exists(GRAPH_MODEL):
-        print("\033[91m{}\033[00m".format(f"Loading existing link prediction model (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
-        start = time.time()
-        with open(GRAPH_MODEL, 'rb') as file:
-            trained = dill.load(file)
-        end = time.time()
-        print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
 
-    else:
         # Send NetworkX graph to StellarGraph format
 
 
-        print("\033[91m{}\033[00m".format(f"Activating StellarGraph Library (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
-        start = time.time()
-        stellar_graph = StellarGraph.from_networkx(unskewed_graph,node_type_attr='type',edge_type_attr='type', edge_weight_attr='weight')
-        print(stellar_graph.info())
-        end = time.time()
-        print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
-
-        # Do actual training of GNN using Metapath2Vec
-        trained = split_train_test(stellar_graph)
-    
-    
-    trained_clf = trained['classifier']
-    trained_op = trained['binary_operator']
-    trained_embedding = trained['embedding']
-
-    # Predict if a random user will like a random product
-    random_user=None
-
-    while random_user is None:
-        random_node = sample(unskewed_graph.nodes, 1)[0]
-        if unskewed_graph.nodes[random_node]['type']=='user':
-            random_user=random_node
-
-    best_prediction=0
-    best_product=None
-
-    users_reviews=dict(unskewed_graph[random_user])
-
-    print("\033[91m{}\033[00m".format(f"Searching for a good recommendation (est. ~{ceil(600/GRAPH_REDUCTION_FACTOR)} seconds)"))
-    start = time.time() 
-    for product in users_reviews:
-        bfs = nx.bfs_tree(unskewed_graph,product, depth_limit=10)
-        for x in bfs.nodes:     
-            if unskewed_graph.nodes[x]['type'] == 'product' and x not in users_reviews:
-                predict_features=trained_op(trained_embedding(random_user),trained_embedding(x))
-                prediction=trained_clf.predict_proba([predict_features])
-                #print(prediction)
-                if prediction[0][1] > best_prediction:
-                    best_prediction=prediction[0][1]
-                    best_product=x
-                    print(f"{best_product} > {prediction}")
-    
-    print(f"\nRecommendation for {random_user}:")
-    print("=User's Tastes=")
-    print("\n","\n ".join(get_reviews(random_user,nx_graph)))
-    print("=Recommended Product Info=")
-    print(f"Title: {get_title(best_product,GRAPH_META)}")
-    print("\n\t","\n\t ".join(get_types(best_product,nx_graph)))
-    print(f"Confidence in prediction: {best_prediction:.1%}")
-
+    print("\033[91m{}\033[00m".format(f"Activating StellarGraph Library (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
+    start = time.time()
+    stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_default='review',node_features='feature')
+    print(stellar_graph.info())
     end = time.time()
-    print("\033[93m{}\033[00m".format(f"\tSearch time: {int(end-start)}s"))
-    
-
-
-        
-        
-
-    #visualize_graph(graph)
-
-            
+    print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
