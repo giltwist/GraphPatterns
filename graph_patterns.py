@@ -1,5 +1,6 @@
 from graph_pattern_common import parse_metadata, get_title
 from graph_pattern_common import GRAPH_REDUCTION_FACTOR, GRAPH_META, GRAPH_MODEL, GRAPH_CATEGORIES
+from graph_pattern_common import GRAPH_REDUCTION_FACTOR, GRAPH_META, GRAPH_MODEL, GRAPH_CATEGORIES, GRAPH_VECTORIZER
 from graph_NN import split_train_test
 
 
