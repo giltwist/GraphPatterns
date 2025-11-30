@@ -1,4 +1,4 @@
-Basic exploration of copurchasing patterns using Amazon data ( From https://snap.stanford.edu/data/amazon-meta.html ) and a GNN
+Basic exploration of copurchasing patterns using Amazon data ( From https://snap.stanford.edu/data/amazon-meta.html ) and a GNN.  This branch utilizes HinSAGE
 
 For parallelization run with:
 
