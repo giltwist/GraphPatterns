@@ -18,6 +18,40 @@ import dill
 
 from random import sample
 
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+def generate_vectorizer():
+
+    def pipe_tokenize(text):
+        return text.split('|')
+
+
+    if os.path.exists(GRAPH_META):
+        corpus=[]
+        for i, e in enumerate(parse_metadata(GRAPH_META)):
+            
+            if i%GRAPH_REDUCTION_FACTOR==0:            
+                if 'categories' in e:
+                    item_categories=""
+                    for j, c in enumerate(e['categories']):
+                        #remove leading pipe
+                        if j==0:
+                            item_categories+=c[1:]
+                        else:
+                            item_categories+=c
+                    corpus.append(item_categories)
+                     
+        vectorizer = TfidfVectorizer(tokenizer=pipe_tokenize,max_df=0.7,max_features=100)
+        vectorizer=vectorizer.fit(corpus)
+        with open(GRAPH_VECTORIZER, 'wb') as file:
+            dill.dump(vectorizer, file)
+
+        return vectorizer
+    else:
+        print("Amazon metadata not found.  Download it from  https://snap.stanford.edu/data/amazon-meta.html")
+
+
+
 # NetworkX has nicer building and storing functions for graphs than StellarGraph
 def generate_graph():
 
