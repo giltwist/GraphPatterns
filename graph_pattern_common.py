@@ -1,4 +1,6 @@
 import re
+from math import ceil, log2
+import networkx as nx
 
 # == GLOBAL CONFIG ==
 
@@ -16,12 +18,11 @@ GRAPH_REDUCTION_FACTOR = 100
 
 # From https://snap.stanford.edu/data/amazon-meta.html
 GRAPH_META = "./data/amazon-meta.txt"
-
+# Vectorizer we are building
+GRAPH_VECTORIZER = f'./data/vectorizer-GRF{GRAPH_REDUCTION_FACTOR}.pkl'
 # Graph we are building
 GRAPH_CATEGORIES = f"./data/amazon-categories_GRF{GRAPH_REDUCTION_FACTOR}.txt"
-
 # Model we are building
-
 GRAPH_MODEL = f"./data/amazon-prediction_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
 
 
@@ -110,3 +111,28 @@ def parse_metadata(filepath):
                 yield entry
     except Exception as e:
         print(e)
+
+#Must be NetworkX Graph
+# Most products have 1-10 reviews, but some have thousands, this can skew NN training
+# This function reduces that skew while keeping some proportionality to degree of products
+def unskew_graph(graph):
+    print(f"Before unskewing: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
+    for node in graph.nodes:
+        if graph.nodes[node]['type']=='product':
+            reviewers = []
+            neighbors=dict(graph[node])
+            for neighbor in neighbors:
+                if graph.nodes[neighbor]['type']=='user':
+                   reviewers.append((neighbor,graph.degree[neighbor]))
+            # All reviewers in ascending order of degree
+            reviewers.sort(key=lambda x: x[1])
+            # 1000 reviews becomes 10, 10 reviews becomes 4
+            if len(reviewers)>1:
+                to_keep = int(ceil(log2(len(reviewers))))
+                # remove edges from all but those of the highest degree
+                for r in reviewers[:-1*to_keep]:
+                    graph.remove_edge(node,r[0])
+    # Remove any nodes that became isolated as a result of this process
+    graph.remove_nodes_from(list(nx.isolates(graph)))
+    print(f"After unskewing: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
+    return graph
