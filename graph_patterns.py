@@ -8,7 +8,7 @@ import time
 import networkx as nx
 import numpy as np
 
-from math import ceil
+from math import ceil, log2
 
 import matplotlib.pyplot as plt
 
@@ -87,8 +87,6 @@ def visualize_graph(graph):
     else:
         print("Graph too large to visualize")
 
-
-
 def estimate_progress(task,duration):
     pass
 
@@ -110,10 +108,31 @@ def get_types(node, graph):
             types.append(neighbor)
     return types
         
-    
-
-
-
+#Must be NetworkX Graph
+# Most products have 1-10 reviews, but some have thousands, this skews NN training
+# This function reduces that skew while keeping some weighting
+def unskew_graph(graph):
+    print(f"Before unskewing: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
+    for node in graph.nodes:
+        if graph.nodes[node]['type']=='product':
+            reviewers = []
+            neighbors=dict(graph[node])
+            for neighbor in neighbors:
+                if graph.nodes[neighbor]['type']=='user':
+                   reviewers.append((neighbor,graph.degree[neighbor]))
+            # All reviewers in ascending order of degree
+            reviewers.sort(key=lambda x: x[1])
+            # 1000 reviews becomes 10, 10 reviews becomes 4
+            if len(reviewers)>1:
+                to_keep = int(ceil(log2(len(reviewers))))
+                # remove edges from all but those of the highest degree
+                for r in reviewers[:-1*to_keep]:
+                    graph.remove_edge(node,r[0])
+    # Remove any nodes that became isolated as a result of this process
+    graph.remove_nodes_from(list(nx.isolates(graph)))
+    print(f"After unskewing: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
+    return graph
+              
 # NOTE: Time estimates were derived on an AMD 3770X CPU with 16GB memory
 if __name__ == "__main__":
 
@@ -123,6 +142,7 @@ if __name__ == "__main__":
 
 
     nx_graph = nx.Graph()
+    unskewed_graph = nx.Graph()
     trained=None
 
     # Try to load at least the categories data
@@ -148,6 +168,7 @@ if __name__ == "__main__":
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
 
+    unskewed_graph = unskew_graph(nx_graph)
     # Try to load complete model
     if os.path.exists(GRAPH_MODEL):
         print("\033[91m{}\033[00m".format(f"Loading existing link prediction model (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
@@ -163,7 +184,7 @@ if __name__ == "__main__":
 
         print("\033[91m{}\033[00m".format(f"Activating StellarGraph Library (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
         start = time.time()
-        stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_attr='type', edge_weight_attr='weight')
+        stellar_graph = StellarGraph.from_networkx(unskewed_graph,node_type_attr='type',edge_type_attr='type', edge_weight_attr='weight')
         print(stellar_graph.info())
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
@@ -180,21 +201,21 @@ if __name__ == "__main__":
     random_user=None
 
     while random_user is None:
-        random_node = sample(nx_graph.nodes, 1)[0]
-        if nx_graph.nodes[random_node]['type']=='user':
+        random_node = sample(unskewed_graph.nodes, 1)[0]
+        if unskewed_graph.nodes[random_node]['type']=='user':
             random_user=random_node
 
     best_prediction=0
     best_product=None
 
-    users_reviews=dict(nx_graph[random_user])
+    users_reviews=dict(unskewed_graph[random_user])
 
     print("\033[91m{}\033[00m".format(f"Searching for a good recommendation (est. ~{ceil(600/GRAPH_REDUCTION_FACTOR)} seconds)"))
     start = time.time() 
     for product in users_reviews:
-        bfs = nx.bfs_tree(nx_graph,product, depth_limit=10)
+        bfs = nx.bfs_tree(unskewed_graph,product, depth_limit=10)
         for x in bfs.nodes:     
-            if nx_graph.nodes[x]['type'] == 'product' and x not in users_reviews:
+            if unskewed_graph.nodes[x]['type'] == 'product' and x not in users_reviews:
                 predict_features=trained_op(trained_embedding(random_user),trained_embedding(x))
                 prediction=trained_clf.predict_proba([predict_features])
                 #print(prediction)
