@@ -96,19 +96,6 @@ def generate_graph():
     else:
         print("Amazon metadata not found.  Download it from  https://snap.stanford.edu/data/amazon-meta.html")
 
-
-def visualize_graph(graph):
-    # Only for small numbers of nodes
-    plt.figure(figsize=(60, 60)) 
-    if (graph.number_of_nodes()<1000 and graph.number_of_edges()<1000):
-        
-        nx.draw(graph, with_labels=True, node_size=50)
-    else:
-        print("Graph too large to visualize")
-
-def estimate_progress(task,duration):
-    pass
-
 #Must be NetworkX Graph
 def get_reviews(user, graph):
     neighbors=dict(graph[user])
@@ -127,30 +114,7 @@ def get_types(node, graph):
             types.append(neighbor)
     return types
         
-#Must be NetworkX Graph
-# Most products have 1-10 reviews, but some have thousands, this skews NN training
-# This function reduces that skew while keeping some weighting
-def unskew_graph(graph):
-    print(f"Before unskewing: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
-    for node in graph.nodes:
-        if graph.nodes[node]['type']=='product':
-            reviewers = []
-            neighbors=dict(graph[node])
-            for neighbor in neighbors:
-                if graph.nodes[neighbor]['type']=='user':
-                   reviewers.append((neighbor,graph.degree[neighbor]))
-            # All reviewers in ascending order of degree
-            reviewers.sort(key=lambda x: x[1])
-            # 1000 reviews becomes 10, 10 reviews becomes 4
-            if len(reviewers)>1:
-                to_keep = int(ceil(log2(len(reviewers))))
-                # remove edges from all but those of the highest degree
-                for r in reviewers[:-1*to_keep]:
-                    graph.remove_edge(node,r[0])
-    # Remove any nodes that became isolated as a result of this process
-    graph.remove_nodes_from(list(nx.isolates(graph)))
-    print(f"After unskewing: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
-    return graph
+
               
 # NOTE: Time estimates were derived on an AMD 3770X CPU with 16GB memory
 if __name__ == "__main__":
