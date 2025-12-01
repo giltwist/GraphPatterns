@@ -28,7 +28,7 @@ GRAPH_REVIEWSDF = f"./data/amazon-reviewsdf_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
 
 # HinSAGE File Locations
 GRAPH_HINSAGE_MODEL = f"./data/hinsage-model_GRF{GRAPH_REDUCTION_FACTOR}"
-GRAPH_HINSAGE_GENERATOR = f"./data/hinsage-model_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
+GRAPH_HINSAGE_GENERATOR = f"./data/hinsage-generator_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
 
 # Metapath2Vec File Locations
 GRAPH_METAPATH2VEC_MODEL = f"./data/metapath2vec-model_GRF{GRAPH_REDUCTION_FACTOR}"
