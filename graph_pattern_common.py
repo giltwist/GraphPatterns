@@ -21,9 +21,10 @@ GRAPH_META = "./data/amazon-meta.txt"
 # Vectorizer we are building
 GRAPH_VECTORIZER = f'./data/vectorizer-GRF{GRAPH_REDUCTION_FACTOR}.pkl'
 # Graph we are building
-GRAPH_CATEGORIES = f"./data/amazon-categories_GRF{GRAPH_REDUCTION_FACTOR}.txt"
+GRAPH_CATEGORIES = f"./data/amazon-categories_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
+GRAPH_REVIEWS = f"./data/amazon-reviews_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
 # Model we are building
-GRAPH_MODEL = f"./data/amazon-prediction_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
+GRAPH_MODEL = f"./data/amazon-prediction_GRF{GRAPH_REDUCTION_FACTOR}"
 
 
 # == END CONFIG == 
