@@ -1,4 +1,4 @@
-from graph_pattern_common import GRAPH_REDUCTION_FACTOR, GRAPH_MODEL
+from graph_pattern_common import GRAPH_REDUCTION_FACTOR, GRAPH_MODEL, GRAPH_GENERATOR
 
 import time
 
@@ -73,8 +73,6 @@ def split_train_test(G, edges_with_ratings):
 
     generator.schema.type_adjacency_list(generator.head_node_types, len(num_samples))
 
-
-
     hinsage = HinSAGE(
     layer_sizes=hinsage_layer_sizes, generator=generator, bias=True, dropout=0.0)
 
@@ -88,6 +86,14 @@ def split_train_test(G, edges_with_ratings):
     loss=losses.mean_squared_error,
     metrics=[metrics.RootMeanSquaredError(),metrics.mae],
     )
+
+    end = time.time()
+    print("\033[93m{}\033[00m".format(f"\tPreparation time: {int(end-start)}s"))
+
+
+
+    start = time.time()
+    print("\033[91m{}\033[00m".format(f"Beginning model test/training (est. ~X seconds)"))
 
     test_metrics = model.evaluate(
     test_gen, verbose=1, use_multiprocessing=False, workers=num_workers
@@ -121,7 +127,6 @@ def split_train_test(G, edges_with_ratings):
 
     y_true = labels_test
     # Predict the rankings using the model:
-    print(type(test_gen))
     y_pred = model.predict(test_gen)
     # Mean baseline rankings = mean movie ranking:
     y_pred_baseline = np.full_like(y_pred, np.mean(y_true))
@@ -138,9 +143,14 @@ def split_train_test(G, edges_with_ratings):
     print("\troot_mean_square_error = ", rmse)
     print("\tmean_absolute_error = ", mae)   
 
+    end = time.time()
+    print("\033[93m{}\033[00m".format(f"\tTraining/Testing time: {int(end-start)}s"))
+    
     model.save(GRAPH_MODEL)
+    with open(GRAPH_GENERATOR, 'wb') as file:
+        dill.dump(generator, file)
 
-    return model
+    return model, generator
 
 
 

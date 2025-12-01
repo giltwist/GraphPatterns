@@ -25,7 +25,7 @@ GRAPH_CATEGORIES = f"./data/amazon-categories_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
 GRAPH_REVIEWS = f"./data/amazon-reviews_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
 # Model we are building
 GRAPH_MODEL = f"./data/amazon-prediction_GRF{GRAPH_REDUCTION_FACTOR}"
-
+GRAPH_GENERATOR = f"./data/amazon-generator_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
 
 # == END CONFIG == 
 
@@ -39,6 +39,32 @@ def get_title(asin, filepath):
                     title = next(f).strip()[7:]
                     return title
             return "Not Found"
+                            
+    except Exception as e:
+        print(e)
+
+def get_categories(asin, filepath):
+    try:
+        with open(filepath, "r") as f:
+            entry = {}
+            for l in f:
+                l = l.strip()
+                if l == f"ASIN: {asin}":
+                    l=next(f).strip()
+                    while not l.startswith("categories") and len(l)>0:
+                        l =next(f).strip()
+                    if len(l)==0:
+                        return []
+                    else:
+                        colonPos = l.find(":")
+                        rows = int(l[colonPos + 2 :])
+                        if rows>0:
+                            categories = []
+                            for i in range(rows):
+                                l = next(f).strip()
+                                categories.append(l)
+                            return categories
+            return []
                             
     except Exception as e:
         print(e)

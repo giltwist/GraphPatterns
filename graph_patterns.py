@@ -1,5 +1,5 @@
-from graph_pattern_common import parse_metadata, get_title
-from graph_pattern_common import GRAPH_REDUCTION_FACTOR, GRAPH_META, GRAPH_MODEL, GRAPH_CATEGORIES, GRAPH_VECTORIZER, GRAPH_REVIEWS
+from graph_pattern_common import parse_metadata, get_title, get_categories
+from graph_pattern_common import GRAPH_REDUCTION_FACTOR, GRAPH_META, GRAPH_MODEL, GRAPH_CATEGORIES, GRAPH_VECTORIZER, GRAPH_REVIEWS, GRAPH_GENERATOR
 from graph_NN import split_train_test
 
 
@@ -14,6 +14,7 @@ from math import ceil, log2
 import matplotlib.pyplot as plt
 
 from stellargraph import StellarGraph
+from stellargraph.mapper import HinSAGELinkGenerator
 
 from keras.saving import load_model
 
@@ -101,23 +102,15 @@ def generate_graph():
         print("Amazon metadata not found.  Download it from  https://snap.stanford.edu/data/amazon-meta.html")
 
 #Must be NetworkX Graph
-def get_reviews(user, graph):
+def get_reviews(user, graph, review_df):
     neighbors=dict(graph[user])
     dub_tab="\n\t\t"
     reviews=[]
     for neighbor in neighbors:
-        reviews.append(f"{'Likes: ' if neighbors[neighbor]['weight']>=3 else 'Dislikes: '}{get_title(neighbor,GRAPH_META)}\n\t\t{dub_tab.join(get_types(neighbor,graph))}")
+        rating = list(review_df[(review_df['user']==user) & (review_df['product']==neighbor)]['rating'])[0]
+        reviews.append(f"{'Likes: ' if rating>=3 else 'Dislikes: '}{get_title(neighbor,GRAPH_META)}\n\t\t{dub_tab.join(get_categories(neighbor,GRAPH_META))}")
     return reviews
 
-#Must be NetworkX Graph
-def get_types(node, graph):
-    neighbors = dict(graph[node])
-    types = []
-    for neighbor in neighbors:
-        if neighbors[neighbor]['type']=="product_type":
-            types.append(neighbor)
-    return types
-        
 
               
 # NOTE: Time estimates were derived on an AMD 3770X CPU with 16GB memory
@@ -132,7 +125,8 @@ if __name__ == "__main__":
     vectorizer=TfidfVectorizer()
     reviews=pd.DataFrame()
 
-    trained=None
+    trained_model=None
+    trained_generator=None
     
 
     # Try to load the vectorizer
@@ -187,14 +181,53 @@ if __name__ == "__main__":
     print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
 
     # Try to load complete model
-    if os.path.exists(GRAPH_MODEL):
+    if os.path.exists(GRAPH_MODEL) and os.path.exists(GRAPH_GENERATOR):
         print("\033[91m{}\033[00m".format(f"Loading existing link prediction model (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
         start = time.time()
-        trained = load_model(GRAPH_MODEL)
+        trained_model = load_model(GRAPH_MODEL)
+        with open(GRAPH_GENERATOR, 'rb') as file:
+            trained_generator = dill.load(file)
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
 
     else:
         # Do actual training of GNN using Metapath2Vec
-        trained = split_train_test(stellar_graph, reviews)
+        trained_model, trained_generator = split_train_test(stellar_graph, reviews)
     
+    # Predict if a random user will like a random product
+    random_user=None
+    random_product = None
+    while random_user is None or random_product is None:
+        random_node = sample(nx_graph.nodes, 1)[0]
+        if nx_graph.nodes[random_node]['type']=='user':
+            random_user=random_node
+        else:
+            random_product=random_node
+
+    best_prediction=0
+    best_product=None
+
+    users_reviews=dict(nx_graph[random_user])
+
+    print("\033[91m{}\033[00m".format(f"Searching for a good recommendation (est. ~{ceil(600/GRAPH_REDUCTION_FACTOR)} seconds)"))
+    start = time.time() 
+    
+    print(f"\nRecommendation for {random_user}:")
+    print("=User's Tastes=")
+    print("\n","\n ".join(get_reviews(random_user,nx_graph,reviews)))
+    print("=Recommended Product Info=")
+
+    pred_gen = trained_generator.flow([(random_user,random_product)],targets=[[0]])
+    
+    print(f"Title: {get_title(random_product,GRAPH_META)}")
+    print("\n\t","\n\t ".join(get_categories(random_product,GRAPH_META)))
+    print(f"Anticipated Rating: {trained_model.predict(pred_gen)[0][0]}")
+
+    end = time.time()
+    print("\033[93m{}\033[00m".format(f"\tSearch time: {int(end-start)}s"))
+    
+
+    
+
+
+            
