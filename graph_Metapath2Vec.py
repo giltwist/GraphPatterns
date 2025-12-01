@@ -35,6 +35,7 @@ def stt_Metapath2Vec(graph: StellarGraph) -> Tuple[Pipeline,Callable,Callable]:
     walk_length = 15
     context_window_size = 10
     num_iter = 1
+    epochs = 4
     workers = multiprocessing.cpu_count()
 
     # This section controls the random walks, ensuring they follow meaningful patterns.
@@ -61,7 +62,7 @@ def stt_Metapath2Vec(graph: StellarGraph) -> Tuple[Pipeline,Callable,Callable]:
             min_count=0,
             sg=1,
             workers=workers,
-            epochs=num_iter,
+            epochs=epochs,
         )
 
         def get_embedding(u):
