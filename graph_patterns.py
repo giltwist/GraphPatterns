@@ -231,7 +231,7 @@ if __name__ == "__main__":
 
     # BFS (out to depth_limit) nearby products that haven't been reviewed by the user yet
     for product in users_reviews:
-        bfs = nx.bfs_tree(nx_graph,product, depth_limit=5)
+        bfs = nx.bfs_tree(nx_graph,product, depth_limit=3)
         for x in bfs.nodes:     
             if nx_graph.nodes[x]['type'] == 'product' and x not in users_reviews:
 
