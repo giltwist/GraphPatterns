@@ -62,6 +62,7 @@ def generate_nxgraph_reviewsdf() -> Tuple[nx.Graph, pd.DataFrame]:
 
         graph = nx.Graph()
         reviews_array = []
+        possible_hanging_products=[]
 
         # can use iterator i for limiting loop
         # otherwise use entry e for data access
@@ -86,6 +87,19 @@ def generate_nxgraph_reviewsdf() -> Tuple[nx.Graph, pd.DataFrame]:
                         graph.add_node(r['customer'],type='user',feature=[1])
                         graph.add_edge(r['customer'],asin)
                         reviews_array.append({'user':r['customer'],'product':asin,'rating':r['rating']})
+                    
+                    if 'similar' in e:
+                        for s in e['similar']:
+                            possible_hanging_products.append(s)
+                            graph.add_node(s, type='product')
+                            graph.add_edge(asin,s)
+
+        #Deduplicate
+        possible_hanging_products = set(possible_hanging_products)
+        # Some "similar products" may not actually be in our dataset, remove them
+        for p in possible_hanging_products:
+            if 'feature' not in graph.nodes[p].keys():
+                graph.remove_node(p)
 
         review_df = pd.DataFrame(reviews_array)
         with open(GRAPH_CATEGORIES, 'wb') as file:
