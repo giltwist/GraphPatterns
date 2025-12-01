@@ -7,7 +7,8 @@ from math import ceil
 
 import multiprocessing
 
-from stellargraph.data import UniformRandomMetaPathWalk, EdgeSplitter
+from stellargraph.data import UniformRandomMetaPathWalk #EdgeSplitter
+from degree_corrected_edgesplitter import DegreeCorrectedEdgeSplitter
 from gensim.models import Word2Vec
 
 from sklearn.pipeline import Pipeline
@@ -142,7 +143,8 @@ def stt_Metapath2Vec(graph: StellarGraph) -> Tuple[Pipeline,Callable,Callable]:
     start = time.time()
     print("\033[91m{}\033[00m".format(f"Sampling reviews and reviews-complement (est. ~{ceil(360/GRAPH_REDUCTION_FACTOR)} seconds)"))
 
-    edge_splitter_test = EdgeSplitter(graph)
+    #TODO: Replace split with degree-corrected method
+    edge_splitter_test = DegreeCorrectedEdgeSplitter(graph)
 
     # Randomly sample a fraction p=0.1 of all positive links, and same number of negative links, from graph, and obtain the
     # reduced graph graph_test with the sampled links removed:
@@ -157,7 +159,7 @@ def stt_Metapath2Vec(graph: StellarGraph) -> Tuple[Pipeline,Callable,Callable]:
     start = time.time()
     print("\033[91m{}\033[00m".format(f"Building training set (est. ~{ceil(600/GRAPH_REDUCTION_FACTOR)} seconds)"))
 
-    edge_splitter_train = EdgeSplitter(graph_test, graph)
+    edge_splitter_train = DegreeCorrectedEdgeSplitter(graph_test, graph)
     
     graph_train, examples, labels = edge_splitter_train.train_test_split(
     p=0.1, method="global", edge_label="review"
