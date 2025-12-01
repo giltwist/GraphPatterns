@@ -1,12 +1,13 @@
 import re
 from math import ceil, log2
+
 import networkx as nx
 
 # == GLOBAL CONFIG ==
 
 # NOTE: Accepts one in GRAPH_REDUCTION_FACTOR products from the original dataset to accommodate system memory
 # Uncomment only one line
-# For rapid iterating on variables, a factor of 100 is recommended
+# For rapid iterating on code, a factor of 100 is recommended
 GRAPH_REDUCTION_FACTOR = 100
 # For a quick run, a factor of 10 is recommended
 #GRAPH_REDUCTION_FACTOR = 10

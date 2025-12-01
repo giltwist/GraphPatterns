@@ -16,18 +16,19 @@ from keras import backend as K
 
 import multiprocessing
 
-
 import dill
+
+from typing import Tuple
 
 # == THIS SECTION COMES MORE OR LESS VERBATIM FROM A TUTORIAL ==
 # https://stellargraph.readthedocs.io/en/stable/demos/link-prediction/hinsage-link-prediction.html
 
 # Must be StellarGraph
-def split_train_test(G, edges_with_ratings):
+def split_train_test(G, edges_with_ratings) -> Tuple[Model,HinSAGELinkGenerator]:
 
     # BEGIN CONFIG SECTION
     batch_size = 200
-    epochs = 3
+    epochs = 20
     # Use 70% of edges for training, the rest for testing:
     train_size = 0.7
     test_size = 0.3
@@ -82,7 +83,7 @@ def split_train_test(G, edges_with_ratings):
 
     model = Model(inputs=x_inp, outputs=score_prediction)
     model.compile(
-    optimizer=optimizers.Adam(learning_rate=0.05),
+    optimizer=optimizers.Adam(learning_rate=0.001),
     loss=losses.mean_squared_error,
     metrics=[metrics.RootMeanSquaredError(),metrics.mae],
     )

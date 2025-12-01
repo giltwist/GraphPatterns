@@ -1,28 +1,23 @@
-from graph_pattern_common import parse_metadata, get_title, get_categories
-from graph_pattern_common import GRAPH_REDUCTION_FACTOR, GRAPH_META, GRAPH_MODEL, GRAPH_CATEGORIES, GRAPH_VECTORIZER, GRAPH_REVIEWS, GRAPH_GENERATOR
-from graph_NN import split_train_test
-
-
 import os
 import time
+from math import ceil
+from random import sample
+
+import dill
 import networkx as nx
 import numpy as np
 import pandas as pd
-
-from math import ceil, log2
-
-import matplotlib.pyplot as plt
-
-from stellargraph import StellarGraph
-from stellargraph.mapper import HinSAGELinkGenerator
-
 from keras.saving import load_model
-
-import dill
-
-from random import sample
-
 from sklearn.feature_extraction.text import TfidfVectorizer
+from stellargraph import StellarGraph
+
+from graph_HinSAGE import split_train_test
+from graph_pattern_common import (GRAPH_CATEGORIES, GRAPH_GENERATOR,
+                                  GRAPH_META, GRAPH_MODEL,
+                                  GRAPH_REDUCTION_FACTOR, GRAPH_REVIEWS,
+                                  GRAPH_VECTORIZER, get_categories, get_title,
+                                  parse_metadata)
+
 
 def generate_vectorizer():
 
