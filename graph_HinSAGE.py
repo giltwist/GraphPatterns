@@ -1,18 +1,17 @@
-from graph_pattern_common import GRAPH_REDUCTION_FACTOR, GRAPH_MODEL, GRAPH_GENERATOR
+from graph_pattern_common import GRAPH_REDUCTION_FACTOR, GRAPH_HINSAGE_MODEL, GRAPH_HINSAGE_GENERATOR
 
 import time
 
 import json
 import pandas as pd
 import numpy as np
-from sklearn import preprocessing, feature_extraction, model_selection
+from sklearn import model_selection
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-import stellargraph as sg
+from stellargraph import StellarGraph
 from stellargraph.mapper import HinSAGELinkGenerator
 from stellargraph.layer import HinSAGE, link_regression
 from keras import Model, optimizers, losses, metrics
-from keras import backend as K
 
 import multiprocessing
 
@@ -23,8 +22,10 @@ from typing import Tuple
 # == THIS SECTION COMES MORE OR LESS VERBATIM FROM A TUTORIAL ==
 # https://stellargraph.readthedocs.io/en/stable/demos/link-prediction/hinsage-link-prediction.html
 
-# Must be StellarGraph
-def split_train_test(G, edges_with_ratings) -> Tuple[Model,HinSAGELinkGenerator]:
+# Split, train, and test HinSAGE Model
+# This model is good at predicting ratings of hypothetical edges
+# BUT it does not predict the likelihood of the existence of the edge
+def stt_HinSAGE(G: StellarGraph, edges_with_ratings: pd.DataFrame) -> Tuple[Model,HinSAGELinkGenerator]:
 
     # BEGIN CONFIG SECTION
     batch_size = 200
@@ -147,8 +148,8 @@ def split_train_test(G, edges_with_ratings) -> Tuple[Model,HinSAGELinkGenerator]
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tTraining/Testing time: {int(end-start)}s"))
     
-    model.save(GRAPH_MODEL)
-    with open(GRAPH_GENERATOR, 'wb') as file:
+    model.save(GRAPH_HINSAGE_MODEL)
+    with open(GRAPH_HINSAGE_GENERATOR, 'wb') as file:
         dill.dump(generator, file)
 
     return model, generator

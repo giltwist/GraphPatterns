@@ -17,16 +17,22 @@ GRAPH_REDUCTION_FACTOR = 100
 #GRAPH_REDUCTION_FACTOR = 1
 
 
+# Original Datasource
 # From https://snap.stanford.edu/data/amazon-meta.html
 GRAPH_META = "./data/amazon-meta.txt"
-# Vectorizer we are building
-GRAPH_VECTORIZER = f'./data/vectorizer-GRF{GRAPH_REDUCTION_FACTOR}.pkl'
-# Graph we are building
+
+# General Graph File Locations
 GRAPH_CATEGORIES = f"./data/amazon-categories_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
-GRAPH_REVIEWS = f"./data/amazon-reviews_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
-# Model we are building
-GRAPH_MODEL = f"./data/amazon-prediction_GRF{GRAPH_REDUCTION_FACTOR}"
-GRAPH_GENERATOR = f"./data/amazon-generator_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
+GRAPH_VECTORIZER = f'./data/vectorizer-GRF{GRAPH_REDUCTION_FACTOR}.pkl'
+GRAPH_REVIEWSDF = f"./data/amazon-reviewsdf_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
+
+# HinSAGE File Locations
+GRAPH_HINSAGE_MODEL = f"./data/hinsage-model_GRF{GRAPH_REDUCTION_FACTOR}"
+GRAPH_HINSAGE_GENERATOR = f"./data/hinsage-model_GRF{GRAPH_REDUCTION_FACTOR}.pkl"
+
+# Metapath2Vec File Locations
+GRAPH_METAPATH2VEC_MODEL = f"./data/metapath2vec-model_GRF{GRAPH_REDUCTION_FACTOR}"
+
 
 # == END CONFIG == 
 

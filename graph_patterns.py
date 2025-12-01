@@ -11,15 +11,19 @@ from keras.saving import load_model
 from sklearn.feature_extraction.text import TfidfVectorizer
 from stellargraph import StellarGraph
 
-from graph_HinSAGE import split_train_test
-from graph_pattern_common import (GRAPH_CATEGORIES, GRAPH_GENERATOR,
-                                  GRAPH_META, GRAPH_MODEL,
-                                  GRAPH_REDUCTION_FACTOR, GRAPH_REVIEWS,
-                                  GRAPH_VECTORIZER, get_categories, get_title,
+from typing import Tuple, List
+
+from graph_HinSAGE import stt_HinSAGE
+from graph_Metapath2Vec import stt_Metapath2Vec
+
+from graph_pattern_common import (GRAPH_CATEGORIES, GRAPH_HINSAGE_GENERATOR,
+                                  GRAPH_META, GRAPH_HINSAGE_MODEL,
+                                  GRAPH_REDUCTION_FACTOR, GRAPH_REVIEWSDF,
+                                  GRAPH_VECTORIZER, GRAPH_METAPATH2VEC_MODEL, get_categories, get_title,
                                   parse_metadata)
 
 
-def generate_vectorizer():
+def generate_vectorizer() -> TfidfVectorizer:
 
     def pipe_tokenize(text):
         return text.split('|')
@@ -52,21 +56,17 @@ def generate_vectorizer():
 
 
 # NetworkX has nicer building and storing functions for graphs than StellarGraph
-def generate_graph():
+def generate_nxgraph_reviewsdf() -> Tuple[nx.Graph, pd.DataFrame]:
 
     if os.path.exists(GRAPH_META):
 
         graph = nx.Graph()
         reviews_array = []
 
-        #all_users=[]
-
         # can use iterator i for limiting loop
         # otherwise use entry e for data access
         for i, e in enumerate(parse_metadata(GRAPH_META)):
             
-            #Useful for debugging
-            #print(str(i) + "|" + simplejson.dumps(e, indent=4) + "\n\n")
 
             if i%GRAPH_REDUCTION_FACTOR==0:            
                 # Ignore products with no categories or no reviews
@@ -90,14 +90,14 @@ def generate_graph():
         review_df = pd.DataFrame(reviews_array)
         with open(GRAPH_CATEGORIES, 'wb') as file:
             dill.dump(graph, file)
-        with open(GRAPH_REVIEWS, 'wb') as file:
+        with open(GRAPH_REVIEWSDF, 'wb') as file:
             dill.dump(review_df, file)
         return graph, review_df
     else:
         print("Amazon metadata not found.  Download it from  https://snap.stanford.edu/data/amazon-meta.html")
 
 #Must be NetworkX Graph
-def get_reviews(user, graph, review_df):
+def get_reviews(user: str, graph: nx.Graph, review_df: pd.DataFrame) -> List[str]:
     neighbors=dict(graph[user])
     dub_tab="\n\t\t"
     reviews=[]
@@ -111,20 +111,22 @@ def get_reviews(user, graph, review_df):
 # NOTE: Time estimates were derived on an AMD 3770X CPU with 16GB memory
 if __name__ == "__main__":
 
+    # Init variables to set scope
+    nx_graph = None
+    stellar_graph = None
+    vectorizer = None
+    reviews = None
+
+    trained_hinsage_model = None
+    trained_hinsage_generator = None
     
+    trained_metapath2vec_clf = None
+    trained_metapath2vec_op = None
+    trained_metapath2vec_embedding = None
 
-    # Loading is much faster than generating, particular with low GRAPH_REDUCTION_FACTOR
-
-
-    nx_graph = nx.Graph()
-    vectorizer=TfidfVectorizer()
-    reviews=pd.DataFrame()
-
-    trained_model=None
-    trained_generator=None
     
-
-    # Try to load the vectorizer
+    # Load or generate the TF-IDF vectorizer for category texts
+    # This is primarily used by HinSAGE
     if os.path.exists(GRAPH_VECTORIZER):
         print("\033[91m{}\033[00m".format(f"Loading existing vectorizer (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
         start = time.time()
@@ -140,8 +142,9 @@ if __name__ == "__main__":
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
 
-    # Try to load the graph/reviews
-    if os.path.exists(GRAPH_CATEGORIES) and os.path.exists(GRAPH_REVIEWS):
+    # Load or generate a NetworkX Graph reviews DataFrame
+    # These are used by both models
+    if os.path.exists(GRAPH_CATEGORIES) and os.path.exists(GRAPH_REVIEWSDF):
         print("\033[91m{}\033[00m".format(f"Loading existing category graph (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
         start = time.time()
         with open(GRAPH_CATEGORIES, 'rb') as file:
@@ -153,16 +156,15 @@ if __name__ == "__main__":
             else:
                 nx_graph.nodes[node]['type']='user'
         
-        with open(GRAPH_REVIEWS, 'rb') as file:
+        with open(GRAPH_REVIEWSDF, 'rb') as file:
             reviews = dill.load(file)
 
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
     else:
-        # Generate everything
         print("\033[91m{}\033[00m".format(f"Generating new category graph (est. ~65 seconds)"))
         start = time.time()
-        nx_graph, reviews = generate_graph()
+        nx_graph, reviews = generate_nxgraph_reviewsdf()
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
 
@@ -175,48 +177,89 @@ if __name__ == "__main__":
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
 
-    # Try to load complete model
-    if os.path.exists(GRAPH_MODEL) and os.path.exists(GRAPH_GENERATOR):
+    # Load or generate Metapath2Vec Model
+    # This model is good at predicting the likelihood of the existence of the edge
+    # BUT it does not predict the ratings of hypothetical edges
+    if os.path.exists(GRAPH_METAPATH2VEC_MODEL):
         print("\033[91m{}\033[00m".format(f"Loading existing link prediction model (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
         start = time.time()
-        trained_model = load_model(GRAPH_MODEL)
-        with open(GRAPH_GENERATOR, 'rb') as file:
-            trained_generator = dill.load(file)
+        
+        with open(GRAPH_METAPATH2VEC_MODEL, 'rb') as file:
+            trained = dill.load(file)
+        
+        trained_metapath2vec_clf = trained['classifier']
+        trained_metapath2vec_op = trained['binary_operator']
+        trained_metapath2vec_embedding = trained['embedding']
+
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
 
     else:
-        # Do actual training of GNN using Metapath2Vec
-        trained_model, trained_generator = split_train_test(stellar_graph, reviews)
+        trained_metapath2vec_clf, trained_metapath2vec_op, trained_metapath2vec_embedding = stt_Metapath2Vec(stellar_graph)
+
+    # Load or generate HinSAGE Model
+    # This model is good at predicting the ratings of hypothetical edges
+    # BUT it does not predict the likelihood of the existence of the edge
+    if os.path.exists(GRAPH_HINSAGE_MODEL) and os.path.exists(GRAPH_HINSAGE_GENERATOR):
+        print("\033[91m{}\033[00m".format(f"Loading existing link prediction model (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
+        start = time.time()
+        trained_hinsage_model = load_model(GRAPH_HINSAGE_MODEL)
+        with open(GRAPH_HINSAGE_GENERATOR, 'rb') as file:
+            trained_hinsage_generator = dill.load(file)
+        end = time.time()
+        print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
+
+    else:
+        trained_hinsage_model, trained_hinsage_generator = stt_HinSAGE(stellar_graph, reviews)
     
-    # Predict if a random user will like a random product
+    # Select a random user
     random_user=None
-    random_product = None
-    while random_user is None or random_product is None:
+    while random_user is None:
         random_node = sample(nx_graph.nodes, 1)[0]
         if nx_graph.nodes[random_node]['type']=='user':
             random_user=random_node
-        else:
-            random_product=random_node
 
-    best_prediction=0
-    best_product=None
+    # Init for Search
+    best_prediction={'probability':0,'rating':0,'product':""}
 
+    
+    print("\033[91m{}\033[00m".format(f"Searching for a good recommendation (est. ~{120} seconds)"))
+    start = time.time() 
+
+    # Starting from user's existing reviews
     users_reviews=dict(nx_graph[random_user])
 
-    print("\033[91m{}\033[00m".format(f"Searching for a good recommendation (est. ~{ceil(600/GRAPH_REDUCTION_FACTOR)} seconds)"))
-    start = time.time() 
-    
+    # BFS (out to depth_limit) nearby products that haven't been reviewed by the user yet
+    for product in users_reviews:
+        bfs = nx.bfs_tree(nx_graph,product, depth_limit=5)
+        for x in bfs.nodes:     
+            if nx_graph.nodes[x]['type'] == 'product' and x not in users_reviews:
+
+                # How likely is edge to exist?
+                metapath2vec_predict_features=trained_metapath2vec_op(trained_metapath2vec_embedding(random_user),trained_metapath2vec_embedding(x))
+                metapath2vec_prediction=trained_metapath2vec_clf.predict_proba([metapath2vec_predict_features])
+                metapath2vec_prediction = metapath2vec_prediction[0][1]
+                
+                # What is the likely rating of this edge?
+                hin2sage_prediction_generator = trained_hinsage_generator.flow([(random_user,x)],targets=[[0]])
+                hinsage_prediction = trained_hinsage_model.predict(hin2sage_prediction_generator,verbose=0)[0][0]
+                
+                # A 99% likely 4 is better than a 50% likely 5
+                if metapath2vec_prediction*hinsage_prediction > best_prediction['probability']*best_prediction['rating']:
+                    best_prediction['probability']=metapath2vec_prediction
+                    best_prediction['rating']=hinsage_prediction
+                    best_prediction['product']=x
+                    print(f"New Best Found: {best_prediction['product']} ({best_prediction['probability']:.1%}@{best_prediction['rating']:.2f})")
+                    
     print(f"\nRecommendation for {random_user}:")
     print("=User's Tastes=")
     print("\n","\n ".join(get_reviews(random_user,nx_graph,reviews)))
-    print("=Recommended Product Info=")
-
-    pred_gen = trained_generator.flow([(random_user,random_product)],targets=[[0]])
     
-    print(f"Title: {get_title(random_product,GRAPH_META)}")
-    print("\n\t","\n\t ".join(get_categories(random_product,GRAPH_META)))
-    print(f"Anticipated Rating: {trained_model.predict(pred_gen)[0][0]}")
+    print("=Recommended Product Info=") 
+    print(f"Title: {get_title(best_prediction['product'],GRAPH_META)}")
+    print("\n\t","\n\t ".join(get_categories(best_prediction['product'],GRAPH_META)))
+    print(f"Likelihood of Purchase: {best_prediction['probability']}")
+    print(f"Anticipated Rating: {best_prediction['rating']}")
 
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tSearch time: {int(end-start)}s"))
