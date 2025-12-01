@@ -42,6 +42,7 @@ def stt_Metapath2Vec(graph: StellarGraph) -> Tuple[Pipeline,Callable,Callable]:
     user_metapaths = [
         ["user", "product", "user"],
         ["product", "user", "product"],
+        ["product", "product"],
     ]
 
     # BEGIN HELPER FUNCTIONS
