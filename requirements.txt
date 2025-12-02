@@ -2,9 +2,11 @@ absl-py==2.3.1
 astunparse==1.6.3
 cachetools==5.5.2
 certifi==2025.11.12
+chardet==5.2.0
 charset-normalizer==3.4.4
 contourpy==1.1.1
 cycler==0.12.1
+dill==0.4.0
 flatbuffers==25.9.23
 fonttools==4.57.0
 gast==0.4.0
