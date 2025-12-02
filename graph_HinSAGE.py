@@ -29,7 +29,7 @@ def stt_HinSAGE(G: StellarGraph, edges_with_ratings: pd.DataFrame) -> Tuple[Mode
 
     # BEGIN CONFIG SECTION
     batch_size = 200
-    epochs = 20
+    epochs = 5
     # Use 70% of edges for training, the rest for testing:
     train_size = 0.7
     test_size = 0.3

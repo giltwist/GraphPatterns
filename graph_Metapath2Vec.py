@@ -32,9 +32,8 @@ def stt_Metapath2Vec(graph: StellarGraph) -> Tuple[Pipeline,Callable,Callable]:
     # Config options
     dimensions = 128
     num_walks = 1
-    walk_length = 15
-    context_window_size = 10
-    num_iter = 1
+    walk_length = 25
+    context_window_size = 4
     epochs = 4
     workers = multiprocessing.cpu_count()
 
