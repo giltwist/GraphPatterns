@@ -8,11 +8,11 @@ import networkx as nx
 # NOTE: Accepts one in GRAPH_REDUCTION_FACTOR products from the original dataset to accommodate system memory
 # Uncomment only one line
 # For rapid iterating on code, a factor of 100 is recommended
-GRAPH_REDUCTION_FACTOR = 100
+#GRAPH_REDUCTION_FACTOR = 100
 # For a quick run, a factor of 10 is recommended
 #GRAPH_REDUCTION_FACTOR = 10
-# With 16 GB of memory, factor of 3 is recommended
-# GRAPH_REDUCTION_FACTOR = 3
+# With 16 GB of memory, factor of 4 is recommended
+GRAPH_REDUCTION_FACTOR = 4
 # If you have 32 or 64GB of memory, a factor of 1 is potentially achievable
 #GRAPH_REDUCTION_FACTOR = 1
 
