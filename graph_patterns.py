@@ -91,8 +91,9 @@ def generate_nxgraph_reviewsdf() -> Tuple[nx.Graph, pd.DataFrame]:
                     if 'similar' in e:
                         for s in e['similar']:
                             possible_hanging_products.append(s)
-                            graph.add_node(s, type='product')
-                            graph.add_edge(asin,s)
+                            if not graph.has_node(s):
+                                graph.add_node(s, type='product')
+                            graph.add_edge(asin,s,type='similar')
 
         #Deduplicate
         possible_hanging_products = set(possible_hanging_products)
@@ -186,7 +187,7 @@ if __name__ == "__main__":
     # Send NetworkX graph to StellarGraph format
     print("\033[91m{}\033[00m".format(f"Activating StellarGraph Library (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
     start = time.time()
-    stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_default='review',node_features='feature')
+    stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_attr='type',edge_type_default='review',node_features='feature')
     print(stellar_graph.info())
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
