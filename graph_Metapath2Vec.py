@@ -142,7 +142,7 @@ def stt_Metapath2Vec(graph: StellarGraph) -> Tuple[Pipeline,Callable,Callable]:
     # END HELPER FUNCTIONS
 
     start = time.time()
-    print("\033[91m{}\033[00m".format(f"Sampling reviews and reviews-complement (est. ~{ceil(360/GRAPH_REDUCTION_FACTOR)} seconds)"))
+    print("\033[91m{}\033[00m".format(f"Sampling reviews and reviews-complement (est. ~{ceil(300/GRAPH_REDUCTION_FACTOR)} seconds)"))
 
     #TODO: Replace split with degree-corrected method
     edge_splitter_test = DegreeCorrectedEdgeSplitter(graph)
@@ -158,7 +158,7 @@ def stt_Metapath2Vec(graph: StellarGraph) -> Tuple[Pipeline,Callable,Callable]:
 
 
     start = time.time()
-    print("\033[91m{}\033[00m".format(f"Building training set (est. ~{ceil(600/GRAPH_REDUCTION_FACTOR)} seconds)"))
+    print("\033[91m{}\033[00m".format(f"Building training set (est. ~{ceil(300/GRAPH_REDUCTION_FACTOR)} seconds)"))
 
     edge_splitter_train = DegreeCorrectedEdgeSplitter(graph_test, graph)
     
@@ -177,7 +177,7 @@ def stt_Metapath2Vec(graph: StellarGraph) -> Tuple[Pipeline,Callable,Callable]:
     print("\033[93m{}\033[00m".format(f"\tBuilding time: {int(end-start)}s"))
 
     start = time.time()
-    print("\033[91m{}\033[00m".format(f"Embedding training set (est. ~{ceil(1800/GRAPH_REDUCTION_FACTOR)} seconds)"))
+    print("\033[91m{}\033[00m".format(f"Embedding training set (est. ~{ceil(6000/GRAPH_REDUCTION_FACTOR)} seconds)"))
     embedding_train = metapath2vec_embedding(graph_train, "Train Graph")
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tEmbedding time: {int(end-start)}s"))

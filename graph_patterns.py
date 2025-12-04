@@ -177,7 +177,7 @@ if __name__ == "__main__":
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
     else:
-        print("\033[91m{}\033[00m".format(f"Generating new category graph (est. ~65 seconds)"))
+        print("\033[91m{}\033[00m".format(f"Generating new category graph (est. ~{ceil(60+500/GRAPH_REDUCTION_FACTOR)} seconds)"))
         start = time.time()
         nx_graph, reviews = generate_nxgraph_reviewsdf()
         end = time.time()
