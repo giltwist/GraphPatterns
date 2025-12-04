@@ -71,7 +71,8 @@ class DegreeCorrectedEdgeSplitter(EdgeSplitter):
             count = 0
             sampled_edges = []
 
-            num_iter = int(np.ceil(num_edges_to_sample / (1.0 * len(start_nodes)))) + 1
+            # This line was also changed from start_nodes to end_nodes because of the above change.
+            num_iter = int(np.ceil(num_edges_to_sample / (1.0 * len(end_nodes)))) + 1
 
             for _ in np.arange(0, num_iter):
                 self._random.shuffle(start_nodes)
