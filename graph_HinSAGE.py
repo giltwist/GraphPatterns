@@ -46,9 +46,6 @@ def stt_HinSAGE(G: StellarGraph, edges_with_ratings: pd.DataFrame) -> Tuple[Mode
 
     #BEGIN HELPER FUNCTION SECTION
 
-    start = time.time()
-    print("\033[91m{}\033[00m".format(f"Splitting data set for train/test (est. ~X seconds)"))
-
     edges_train, edges_test = model_selection.train_test_split(
         edges_with_ratings, train_size=train_size, test_size=test_size
     )
@@ -60,12 +57,9 @@ def stt_HinSAGE(G: StellarGraph, edges_with_ratings: pd.DataFrame) -> Tuple[Mode
     labels_train = edges_train["rating"]
     labels_test = edges_test["rating"]
 
-    end = time.time()
-    print("\033[93m{}\033[00m".format(f"\tSplitting time: {int(end-start)}s"))
-
 
     start = time.time()
-    print("\033[91m{}\033[00m".format(f"Preparing HinSage Model (est. ~X seconds)"))
+    print("\033[91m{}\033[00m".format(f"Preparing HinSage Model (est. ~60 seconds)"))
 
     generator = HinSAGELinkGenerator(
     G, batch_size, num_samples, head_node_types=["user", "product"]
@@ -95,7 +89,7 @@ def stt_HinSAGE(G: StellarGraph, edges_with_ratings: pd.DataFrame) -> Tuple[Mode
 
 
     start = time.time()
-    print("\033[91m{}\033[00m".format(f"Beginning model test/training (est. ~X seconds)"))
+    print("\033[91m{}\033[00m".format(f"Beginning model test/training (est. ~{np.floor(500/GRAPH_REDUCTION_FACTOR)} minutes)"))
 
     test_metrics = model.evaluate(
     test_gen, verbose=1, use_multiprocessing=False, workers=num_workers
@@ -104,9 +98,6 @@ def stt_HinSAGE(G: StellarGraph, edges_with_ratings: pd.DataFrame) -> Tuple[Mode
     print("Untrained model's Test Evaluation:")
     for name, val in zip(model.metrics_names, test_metrics):
         print("\t{}: {:0.4f}".format(name, val))
-
-    end = time.time()
-    print("\033[93m{}\033[00m".format(f"\tPreparation time: {int(end-start)}s"))
 
 
     history = model.fit(
@@ -146,7 +137,7 @@ def stt_HinSAGE(G: StellarGraph, edges_with_ratings: pd.DataFrame) -> Tuple[Mode
     print("\tmean_absolute_error = ", mae)   
 
     end = time.time()
-    print("\033[93m{}\033[00m".format(f"\tTraining/Testing time: {int(end-start)}s"))
+    print("\033[93m{}\033[00m".format(f"\tTraining/Testing time: {time.strftime('%H:%M:%S', time.gmtime(int(end-start)))}"))
     
     model.save(GRAPH_HINSAGE_MODEL)
     with open(GRAPH_HINSAGE_GENERATOR, 'wb') as file:
