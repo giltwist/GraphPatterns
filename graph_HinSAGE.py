@@ -106,12 +106,12 @@ def stt_HinSAGE(G: StellarGraph, edges_with_ratings: pd.DataFrame) -> Tuple[Mode
     epochs=epochs,
     verbose=1,
     shuffle=False,
-    use_multiprocessing=False,
+    use_multiprocessing=True,
     workers=num_workers,
     )
 
     test_metrics = model.evaluate(
-    test_gen, use_multiprocessing=False, workers=num_workers, verbose=1
+    test_gen, use_multiprocessing=True, workers=num_workers, verbose=1
 )
 
     print("Test Evaluation:")

@@ -244,27 +244,41 @@ if __name__ == "__main__":
     # Starting from user's existing reviews
     users_reviews=dict(nx_graph[random_user])
 
-    # BFS (out to depth_limit) nearby products that haven't been reviewed by the user yet
-    for product in users_reviews:
-        bfs = nx.bfs_tree(nx_graph,product, depth_limit=3)
-        for x in bfs.nodes:     
-            if nx_graph.nodes[x]['type'] == 'product' and x not in users_reviews:
+        
+    products_to_check=[]
 
-                # How likely is edge to exist?
-                metapath2vec_predict_features=trained_metapath2vec_op(trained_metapath2vec_embedding(random_user),trained_metapath2vec_embedding(x))
-                metapath2vec_prediction=trained_metapath2vec_clf.predict_proba([metapath2vec_predict_features])
-                metapath2vec_prediction = metapath2vec_prediction[0][1]
-                
-                # What is the likely rating of this edge?
-                hin2sage_prediction_generator = trained_hinsage_generator.flow([(random_user,x)],targets=[[0]])
-                hinsage_prediction = trained_hinsage_model.predict(hin2sage_prediction_generator,verbose=0)[0][0]
-                
-                # A 99% likely 4 is better than a 50% likely 5
-                if metapath2vec_prediction*hinsage_prediction > best_prediction['probability']*best_prediction['rating']:
-                    best_prediction['probability']=metapath2vec_prediction
-                    best_prediction['rating']=hinsage_prediction
-                    best_prediction['product']=x
-                    print(f"New Best Found: {best_prediction['product']} ({best_prediction['probability']:.1%}@{best_prediction['rating']:.2f})")
+    for product in users_reviews:
+        # BFS (out to depth_limit) nearby products that haven't been reviewed by the user yet
+        bfs = nx.bfs_tree(nx_graph,product, depth_limit=3)
+        nonproducts=[]
+        for node in bfs:
+            if not nx_graph.nodes[node]['type'] == 'product' or node in users_reviews:
+                nonproducts.append(node)
+        bfs.remove_nodes_from(nonproducts)
+        products_to_check.extend(bfs)
+
+    #Deduplicate
+    products_to_check=list(set(products_to_check))
+
+    for x in products_to_check:     
+        # How likely is edge to exist?
+        metapath2vec_predict_features=trained_metapath2vec_op(trained_metapath2vec_embedding(random_user),trained_metapath2vec_embedding(x))
+        metapath2vec_prediction=trained_metapath2vec_clf.predict_proba([metapath2vec_predict_features])
+        metapath2vec_prediction = metapath2vec_prediction[0][1]
+        
+        # What is the likely rating of this edge?
+        hin2sage_prediction_generator = trained_hinsage_generator.flow([(random_user,x)],targets=[[0]])
+        hinsage_prediction = trained_hinsage_model.predict(hin2sage_prediction_generator,verbose=0)[0][0]
+        
+        # A 99% likely 4 is better than a 50% likely 5
+        if metapath2vec_prediction*hinsage_prediction > best_prediction['probability']*best_prediction['rating']:
+            best_prediction['probability']=metapath2vec_prediction
+            best_prediction['rating']=hinsage_prediction
+            best_prediction['product']=x
+            print(f"New Best Found: {best_prediction['product']} ({best_prediction['probability']:.1%}@{best_prediction['rating']:.2f})")
+            if metapath2vec_prediction*hinsage_prediction > 4.4:
+                print("Sufficiently good match found, stopping search.")
+                break
                     
     print(f"\nRecommendation for {random_user}:")
     print("=User's Tastes=")

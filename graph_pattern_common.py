@@ -11,7 +11,7 @@ import networkx as nx
 #GRAPH_REDUCTION_FACTOR = 100
 # For a quick run, a factor of 10 is recommended
 #GRAPH_REDUCTION_FACTOR = 10
-# With 16 GB of memory, factor of 4 is recommended
+# With 16 GB of memory, factor of 4 is max recommended
 GRAPH_REDUCTION_FACTOR = 4
 # If you have 32 or 64GB of memory, a factor of 1 is potentially achievable
 #GRAPH_REDUCTION_FACTOR = 1
