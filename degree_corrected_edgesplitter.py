@@ -71,10 +71,17 @@ class DegreeCorrectedEdgeSplitter(EdgeSplitter):
             count = 0
             sampled_edges = []
 
-            # This line was also changed from start_nodes to end_nodes because of the above change.
-            num_iter = int(np.ceil(num_edges_to_sample / (1.0 * len(end_nodes)))) + 1
+            size_complete_graph=np.floor((len(end_nodes)**2-len(end_nodes))/2)
+            max_negative_edges = size_complete_graph-len(self.g.edges())
 
-            for _ in np.arange(0, num_iter):
+            if max_negative_edges < num_edges_to_sample:
+                raise ValueError(
+                    "Unable to sample {} negative edges. Consider using smaller value for p.".format(
+                        num_edges_to_sample
+                    )
+                )
+
+            while len(sampled_edges) < num_edges_to_sample:
                 self._random.shuffle(start_nodes)
                 self._random.shuffle(end_nodes)
                 for u, v in zip(start_nodes, end_nodes):
@@ -94,9 +101,4 @@ class DegreeCorrectedEdgeSplitter(EdgeSplitter):
                         if count == num_edges_to_sample:
                             return sampled_edges
 
-            if len(sampled_edges) != num_edges_to_sample:
-                raise ValueError(
-                    "Unable to sample {} negative edges. Consider using smaller value for p.".format(
-                        num_edges_to_sample
-                    )
-                )
+            
