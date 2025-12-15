@@ -22,6 +22,181 @@ from graph_pattern_common import (GRAPH_CATEGORIES, GRAPH_HINSAGE_GENERATOR,
                                   GRAPH_VECTORIZER, GRAPH_METAPATH2VEC_MODEL, get_categories, get_title,
                                   parse_metadata)
 
+#Insert for Neo4j
+from neo4j import GraphDatabase
+from tqdm import tqdm
+
+# Neo4j database connection details
+URI = "bolt://localhost:7687" 
+AUTH = ("neo4j", "secretkey") 
+
+class Neo4jLoader:
+
+    def __init__(self, uri, user, password):
+        self.driver = GraphDatabase.driver(uri, auth=(user, password))
+
+    def close(self):
+        self.driver.close()
+
+
+    # Convert NumPy → safe Neo4j property values
+    @staticmethod
+    def _clean_properties(properties):
+        cleaned = {}
+        for k, v in properties.items():
+
+            if isinstance(v, np.ndarray):
+                cleaned[k] = v.astype(float).tolist()
+
+            elif isinstance(v, (np.float32, np.float64)):
+                cleaned[k] = float(v)
+
+            elif isinstance(v, (np.int32, np.int64)):
+                cleaned[k] = int(v)
+
+            elif isinstance(v, (list, tuple)):
+                new_list = []
+                for x in v:
+                    if isinstance(x, (np.float32, np.float64)):
+                        new_list.append(float(x))
+                    elif isinstance(x, (np.int32, np.int64)):
+                        new_list.append(int(x))
+                    else:
+                        new_list.append(x)
+                cleaned[k] = new_list
+
+            elif isinstance(v, (str, bool, float, int)) or v is None:
+                cleaned[k] = v
+
+            else:
+                cleaned[k] = str(v)
+
+        return cleaned
+
+    # Delete ALL nodes + relationships 
+    @staticmethod
+    def _delete_all(session, batch_rel=1000, batch_nodes=1000):
+        print("\n\033[93mDeleting ALL existing Neo4j data...\033[0m")
+        # Delete all relationships in batches
+        while True:
+            rel_count = session.run(
+                "MATCH ()-[r]-() RETURN count(r) AS c"
+            ).single()["c"]
+
+            if rel_count == 0:
+                break
+
+            print(f"Remaining relationships: {rel_count:,}")
+            delete_amount = min(batch_rel, rel_count)
+
+            session.run(
+                """
+                MATCH ()-[r]-()
+                WITH r LIMIT $batch
+                DELETE r
+                """,
+                batch=batch_rel
+            ).consume()
+
+        # Delete all nodes in batches
+        while True:
+            node_count = session.run(
+                "MATCH (n) RETURN count(n) AS c"
+            ).single()["c"]
+
+            if node_count == 0:
+                break
+
+            print(f"Remaining nodes: {node_count:,}")
+            delete_amount = min(batch_nodes, node_count)
+
+            session.run(
+                """
+                MATCH (n)
+                WITH n LIMIT $batch
+                DELETE n
+                """,
+                batch=batch_nodes
+            ).consume()
+
+        print("\033[92mNeo4j delete complete!\033[0m\n")
+
+    # Create node
+    @staticmethod
+    def _create_nodes_batch(session, batch):
+       session.run(
+           """
+           UNWIND $rows AS row
+           MERGE (n:Node {id: row.id})
+           SET n += row.props
+           """,
+           rows=batch
+       ).consume()
+
+    # Create relationship
+    @staticmethod
+    def _create_rels_batch(session, batch):
+       session.run(
+           """
+           UNWIND $rows AS row
+           MATCH (a {id: row.src})
+           MATCH (b {id: row.dst})
+           CREATE (a)-[r:CONNECTED]->(b)
+           SET r += row.props
+           """,
+           rows=batch
+       ).consume()
+
+    # Add NetworkX graph → Neo4j
+    def add_graph(self, graph, batch_size=5000):
+
+        with self.driver.session() as session:
+        # Ensure uniqueness constraint exists
+            constraints = session.run("CALL db.constraints()").data()
+            exists = any("ASSERT ( n.id ) IS UNIQUE" in c.get("description", "")
+                     for c in constraints)
+
+            if not exists:
+               session.run(
+                 "CREATE CONSTRAINT ON (n:Node) ASSERT n.id IS UNIQUE;"
+               ).consume()
+  
+        
+            #  Clear database
+            Neo4jLoader._delete_all(session)
+
+        # Create nodes in batches
+        print("\033[94mCreating nodes (batched)...\033[0m")
+        batch = []
+        for node_id, data in tqdm(graph.nodes(data=True)):
+            batch.append({
+                "id": node_id,
+                "props": self._clean_properties(data)
+            })
+            if len(batch) >= batch_size:
+                self._create_nodes_batch(session, batch)
+                batch = []
+
+        if batch:
+            self._create_nodes_batch(session, batch)
+        # Create relationships in batches
+        print("\033[94mCreating relationships (batched)...\033[0m")
+        batch = []
+        for src, dst, data in tqdm(graph.edges(data=True)):
+            batch.append({
+                "src": src,
+                "dst": dst,
+                "props": self._clean_properties(data)
+            })
+            if len(batch) >= batch_size:
+                self._create_rels_batch(session, batch)
+                batch = []
+
+        if batch:
+            self._create_rels_batch(session, batch)
+
+        print("\033[92mGraph upload complete!\033[0m")
+#End Neo4j addition
 
 def generate_vectorizer() -> TfidfVectorizer:
 
@@ -58,6 +233,18 @@ def generate_vectorizer() -> TfidfVectorizer:
 # NetworkX has nicer building and storing functions for graphs than StellarGraph
 def generate_nxgraph_reviewsdf() -> Tuple[nx.Graph, pd.DataFrame]:
 
+ # Original additions for ArangoDB 
+#    os.environ["DATABASE_HOST"] = "http://localhost:8529"  
+#    os.environ["DATABASE_USERNAME"] = "maggie"  
+#    os.environ["DATABASE_PASSWORD"] = ""
+#    os.environ["DATABASE_NAME"] = "copurchase"
+# Now including the log in information for the Neo4j graph
+#    uri = "bolt://localhost:7687"
+#    username = "neo4j"
+#    password = "spain-galaxy-plaza-flute-gelatin-6943"
+# End of Neo4j login information
+
+
     if os.path.exists(GRAPH_META):
 
         graph = nx.Graph()
@@ -91,9 +278,8 @@ def generate_nxgraph_reviewsdf() -> Tuple[nx.Graph, pd.DataFrame]:
                     if 'similar' in e:
                         for s in e['similar']:
                             possible_hanging_products.append(s)
-                            if not graph.has_node(s):
-                                graph.add_node(s, type='product')
-                            graph.add_edge(asin,s,type='similar')
+                            graph.add_node(s, type='product')
+                            graph.add_edge(asin,s)
 
         #Deduplicate
         possible_hanging_products = set(possible_hanging_products)
@@ -106,7 +292,19 @@ def generate_nxgraph_reviewsdf() -> Tuple[nx.Graph, pd.DataFrame]:
         with open(GRAPH_CATEGORIES, 'wb') as file:
             dill.dump(graph, file)
         with open(GRAPH_REVIEWSDF, 'wb') as file:
-            dill.dump(review_df, file)
+            dill.dump(review_df, file) 
+# Also removed from ArangoDB implementation
+#        G_nxadb = nxadb.Graph(incoming_graph_data=graph, name="CoPurchPredict")
+#        print(G_nxadb.number_of_nodes(), G_nxadb.number_of_edges())
+# Adding new code below for Neo4j graph database
+#        driver = GraphDatabase.driver(uri, auth=(username, password))
+
+#        with driver.session() as session:
+#           print("Wrting to Neo4j")
+#           session.write_transaction(send_networkx_to_neo4j, graph)
+
+#        driver.close()
+#        print("NetworkX graph successfully sent to Neo4j.")
         return graph, review_df
     else:
         print("Amazon metadata not found.  Download it from  https://snap.stanford.edu/data/amazon-meta.html")
@@ -177,17 +375,30 @@ if __name__ == "__main__":
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tLoading time: {int(end-start)}s"))
     else:
-        print("\033[91m{}\033[00m".format(f"Generating new category graph (est. ~{ceil(60+500/GRAPH_REDUCTION_FACTOR)} seconds)"))
+        print("\033[91m{}\033[00m".format(f"Generating new category graph (est. ~65 seconds)"))
         start = time.time()
         nx_graph, reviews = generate_nxgraph_reviewsdf()
         end = time.time()
         print("\033[93m{}\033[00m".format(f"\tGeneration time: {int(end-start)}s"))
 
+    # Send NetworkX graph to Neo4j
+    print("\033[91m{}\033[00m".format(f"Begining Transfer to Neo4j (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
+    start = time.time()
+    loader = Neo4jLoader(URI, AUTH[0], AUTH[1])
+    try:
+        print("Transferring graph data to Neo4j...")
+        loader.add_graph(nx_graph)
+        print("Graph data transfer complete.")
+    finally:
+        loader.close()
+        end = time.time()
+        print("\033[93m{}\033[00m".format(f"\tNeo4j Working time: {int(end-start)}s"))
+    # End send to Neo4j
 
     # Send NetworkX graph to StellarGraph format
     print("\033[91m{}\033[00m".format(f"Activating StellarGraph Library (est. ~{ceil(60/GRAPH_REDUCTION_FACTOR)} seconds)"))
     start = time.time()
-    stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_attr='type',edge_type_default='review',node_features='feature')
+    stellar_graph = StellarGraph.from_networkx(nx_graph,node_type_attr='type',edge_type_default='review',node_features='feature')
     print(stellar_graph.info())
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tActivation time: {int(end-start)}s"))
@@ -279,8 +490,3 @@ if __name__ == "__main__":
     end = time.time()
     print("\033[93m{}\033[00m".format(f"\tSearch time: {int(end-start)}s"))
     
-
-    
-
-
-            
